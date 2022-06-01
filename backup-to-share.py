@@ -122,7 +122,7 @@ def load_config(config_file: Path):
     try:
         with open(config_file, "r") as read_file:
             config_data = json.load(read_file)
-    except:
+    except JSONDecodeError as ex:
         log_error(f'Invalid configuration file: "{config_file}"')
         raise
 
@@ -142,7 +142,7 @@ def validate_config(config_file: Path):
         target_paths = config['target_paths']
         cleanup = config['cleanup']
         cleanup = config['compress_level']
-    except JSONDecodeError as ex:
+    except KeyError as ex:
         log_error(f'Configuration file "{config_file}" is missing a required key')
         raise
 
