@@ -5,7 +5,6 @@ Requirements:
 - 7z installed and accessible via the PATH environment variable
 
 TODO:
-- Use Python libraries for building the archive
 - Use Python libraries to encrypt the archive
     - Not sure this will be possible with standard library modules
 - Archive all valid paths in one command line execution
@@ -25,6 +24,7 @@ from datetime import datetime
 from json.decoder import JSONDecodeError
 from pathlib import Path
 from subprocess import PIPE, STDOUT
+from zipfile import ZipFile, ZIP_DEFLATED
 
 
 DEFAULT_CONFIG = {
@@ -33,11 +33,33 @@ DEFAULT_CONFIG = {
     "target_paths": [
         r"",
     ],
-    "cleanup": False
+    "cleanup": False,
+    "compress_level": 9
 }
 
 
-def add_to_archive(archive_path: Path, target_path: Path, password: str):
+def add_to_archive(archive_path: Path, target_path: Path, compress_level: int = 9):
+    '''Adds the target path to an archive.'''
+
+    log_info(f'Archiving "{target_path}"')
+
+    if not target_path.exists():
+        log_error(f'Unable to archive "{target_path}"; path does not exist')
+        return
+
+    with ZipFile(archive_path, mode='a', compression=ZIP_DEFLATED, compresslevel=compress_level) as archive:
+        if target_path.is_dir():
+            for file_path in target_path.rglob("*"):
+                archive.write(
+                    file_path,
+                    arcname=file_path.relative_to(target_path.anchor))
+        else:
+            archive.write(
+                    target_path,
+                    arcname=target_path.relative_to(target_path.anchor))
+
+
+def add_to_archive_7z(archive_path: Path, target_path: Path, password: str):
     '''
     Adds the target path to the archive.
     '''
@@ -119,6 +141,7 @@ def validate_config(config_file: Path):
         destination = config['destination_folder']
         target_paths = config['target_paths']
         cleanup = config['cleanup']
+        cleanup = config['compress_level']
     except JSONDecodeError as ex:
         log_error(f'Configuration file "{config_file}" is missing a required key')
         raise
@@ -206,7 +229,7 @@ def main():
     # Archive all target paths
     password = config['password']
     for path in config['target_paths']:
-        add_to_archive(archive_path, Path(path), password)
+        add_to_archive(archive_path, Path(path), config['compress_level'])
 
     # Move archive to destination path
     if config['destination_folder']:
