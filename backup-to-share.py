@@ -169,10 +169,12 @@ def parse_args():
     Parse and return command line args.
     '''
 
-    parser = argparse.ArgumentParser(description='Copies files and folders into a password protected archive and moves the archive to a target destination')
+    parser = argparse.ArgumentParser(
+        description='Copies files and folders into a password protected archive and moves the archive to a target destination')
     parser.add_argument('config_file', type=str, help='Bacup configuration file')
     parser.add_argument('-c', '--create-config', action='store_true', help='Create a new backup configuration file')
-    parser.add_argument('-v', '--validate', action='store_true', help='Validates JSON configuration file without performing backup')
+    parser.add_argument('-v', '--validate', action='store_true',
+                        help='Validates JSON configuration file without performing backup')
 
     return parser.parse_args()
 
