@@ -230,6 +230,8 @@ def main():
         sys.exit()
 
     config = load_config(config_file)
+    passphrase = config['passphrase']
+    cleanup = config['cleanup']
 
     timestamp = get_full_timestamp()
     archive_path = Path(f'Backup-{timestamp}.zip')
@@ -243,24 +245,39 @@ def main():
     for path in config['target_paths']:
         add_to_archive(archive_path, Path(path), config['compress_level'])
 
-    # Encrypt archive
-    encrypted_path = archive_path.with_suffix(archive_path.suffix + '.enc')
-    if encrypted_path.exists():
-        log_error('Unable to output encrypted file "{encrypted_path}"; file already exists')
-        sys.exit(1)
+    move_source_path = archive_path
 
-    passphrase = config['passphrase']
-    encrypt_file(archive_path, encrypted_path, passphrase)
+    # Encrypt archive if config contains a passphrase
+    encrypted_path = ""
+    if passphrase:
+        encrypted_path = archive_path.with_suffix(archive_path.suffix + '.enc')
+        move_source_path = encrypted_path
+        if encrypted_path.exists():
+            log_error('Unable to output encrypted file "{encrypted_path}"; file already exists')
+            sys.exit(1)
+
+        encrypt_file(archive_path, encrypted_path, passphrase)
+
+        # Do not move anything if config contains a passphrase but the encryption hasn't succeeded
+        if not encrypted_path.exists():
+            log_info(f'Preventing archive move to destination folder; encryption failed')
+            move_source_path = ""
+
+            # Prevent cleanup on encryption failure so manual intervention can occur
+            cleanup = False
 
     # Move archive to destination path
-    if config['destination_folder']:
+    if config['destination_folder'] and move_source_path and move_source_path.exists():
         destination_path = Path(config['destination_folder'])
-        move_file(encrypted_path, destination_path)
+        move_file(move_source_path, destination_path)
 
-    if (config['cleanup']):
-        log_info(f'Deleting local archive file "{archive_path}"')
-        archive_path.unlink()
-        encrypted_path.unlink()
+    if (cleanup):
+        if archive_path.exists():
+            log_info(f'Deleting local file "{archive_path}"')
+            archive_path.unlink()
+        if encrypted_path and encrypted_path.exists():
+            log_info(f'Deleting local file "{encrypted_path}"')
+            encrypted_path.unlink()
 
     end_time = time.perf_counter()
     duration = end_time - start_time
