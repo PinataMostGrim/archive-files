@@ -40,7 +40,7 @@ def add_to_archive(archive_path: Path, target_path: Path, compress_level: int = 
     log_info(f'Archiving "{target_path}"')
 
     if not target_path.exists():
-        log_error(f'Unable to archive "{target_path}"; path does not exist')
+        log_error(f'"{target_path}" does not exist - unable to archive')
         return
 
     with ZipFile(archive_path, mode='a', compression=ZIP_DEFLATED, compresslevel=compress_level) as archive:
@@ -61,13 +61,13 @@ def encrypt_file(input_path: Path, output_path: Path, passphrase: str):
     '''
 
     if not input_path.exists():
-        log_error(f'Unable to encrypt file "{input_path}"; file does not exist')
+        log_error(f'"{input_path}" does not exist - unable to encrypt file')
         return
 
     try:
         subprocess.run(['openssl', 'help'], check=True, capture_output=True)
     except FileNotFoundError as ex:
-        log_error(f'Unable to encrypt archive; openssl is not available on PATH variable')
+        log_error(f'Openssl is not available on PATH variable - unable to encrypt archive')
         return
 
     log_info(f'Encrypting file "{input_path}"')
@@ -101,7 +101,7 @@ def move_file(file: Path, destination_path: Path):
     log_info(f'Moving "{file}" to "{target_path}"')
 
     if target_path.exists():
-        log_error(f'Unable to move file to destination; target path "{target_path}" already exists')
+        log_error(f'Target path "{target_path}" already exists - unable to move file to destination')
         sys.exit(1)
 
     # shutil.copy() does not preserve file metadata. If this is something we need in
@@ -120,7 +120,7 @@ def create_config(config_file: Path):
         config_file.suffix = config_file.with_suffix('.json')
 
     if (config_file.exists()):
-        log_error(f'Unable to create backup configuration file; "{config_file}" already exists')
+        log_error(f'"{config_file}" already exists - unable to create backup configuration file')
         sys.exit(1)
 
     with open(config_file, 'w') as write_file:
@@ -135,7 +135,7 @@ def load_config(config_file: Path):
     '''
 
     if (not config_file.exists()):
-        log_error(f'Unable to load configuration file; "{config_file}" does not exist')
+        log_error(f'"{config_file}" does not exist - unable to load configuration file')
         sys.exit(1)
 
     try:
@@ -213,7 +213,7 @@ def parse_args():
 
     parser = argparse.ArgumentParser(
         description='Copies files and folders into a password protected archive and moves the archive to a target destination')
-    parser.add_argument('config_file', type=str, help='Bacup configuration file')
+    parser.add_argument('config_file', type=str, help='Backup configuration file')
     parser.add_argument('-c', '--create-config', action='store_true', help='Create a new backup configuration file')
     parser.add_argument('-v', '--validate', action='store_true',
                         help='Validates JSON configuration file without performing backup')
@@ -244,7 +244,7 @@ def main():
     log_info(f'Backing up files to "{archive_path}"')
 
     if (archive_path.exists()):
-        log_error(f'Unable to create backup archive; archive path "{archive_path}" already exists')
+        log_error(f'Archive path "{archive_path}" already exists - unable to create backup archive')
         sys.exit(1)
 
     # Archive all target paths
@@ -259,14 +259,14 @@ def main():
         encrypted_path = archive_path.with_suffix(archive_path.suffix + '.enc')
         move_source_path = encrypted_path
         if encrypted_path.exists():
-            log_error('Unable to output encrypted file "{encrypted_path}"; file already exists')
+            log_error('"{encrypted_path}" already exists - unable to output encrypted file ')
             sys.exit(1)
 
         encrypt_file(archive_path, encrypted_path, passphrase)
 
         # Do not move anything if config contains a passphrase but the encryption hasn't succeeded
         if not encrypted_path.exists():
-            log_error(f'Encryption failed; preventing archive relocation to destination folder')
+            log_error('Encryption failed - preventing archive relocation to destination folder')
             move_source_path = ""
 
             # Prevent cleanup on encryption failure so manual intervention can occur
