@@ -64,6 +64,12 @@ def encrypt_file(input_path: Path, output_path: Path, passphrase: str):
         log_error(f'Unable to encrypt file "{input_path}"; file does not exist')
         return
 
+    try:
+        subprocess.run(['openssl', 'help'], check=True, capture_output=True)
+    except FileNotFoundError as ex:
+        log_error(f'Unable to encrypt archive; openssl is not available on PATH variable')
+        return
+
     log_info(f'Encrypting file "{input_path}"')
     encrypt_command = [
         'openssl',
@@ -260,7 +266,7 @@ def main():
 
         # Do not move anything if config contains a passphrase but the encryption hasn't succeeded
         if not encrypted_path.exists():
-            log_info(f'Preventing archive move to destination folder; encryption failed')
+            log_error(f'Encryption failed; preventing archive relocation to destination folder')
             move_source_path = ""
 
             # Prevent cleanup on encryption failure so manual intervention can occur
