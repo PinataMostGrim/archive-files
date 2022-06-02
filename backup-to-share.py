@@ -2,15 +2,9 @@
 Compresses important files from local drive into a password protected archive and moves the archive to the network share.
 
 Requirements:
-- 7z installed and accessible via the PATH environment variable
+- openssl accessible via the PATH environment variable
 
 TODO:
-- Use Python libraries to encrypt the archive
-    - Not sure this will be possible with standard library modules
-- Archive all valid paths in one command line execution
-    - Check all file paths before starting archive
-    - [link](https://superuser.com/a/940884)
-    - Time it to see if there is a savings
 '''
 
 import argparse
@@ -28,7 +22,7 @@ from zipfile import ZipFile, ZIP_DEFLATED
 
 
 DEFAULT_CONFIG = {
-    "password": r"password",
+    "passphrase": r"password",
     "destination_folder": r"",
     "target_paths": [
         r"",
@@ -39,7 +33,9 @@ DEFAULT_CONFIG = {
 
 
 def add_to_archive(archive_path: Path, target_path: Path, compress_level: int = 9):
-    '''Adds the target path to an archive.'''
+    '''
+    Adds the target path to an archive.
+    '''
 
     log_info(f'Archiving "{target_path}"')
 
@@ -59,18 +55,35 @@ def add_to_archive(archive_path: Path, target_path: Path, compress_level: int = 
                     arcname=target_path.relative_to(target_path.anchor))
 
 
-def add_to_archive_7z(archive_path: Path, target_path: Path, password: str):
+def encrypt_file(input_path: Path, output_path: Path, passphrase: str):
     '''
-    Adds the target path to the archive.
+    Encrypts a file using openssl and AES-256.
     '''
 
-    log_info(f'Archiving "{target_path}"')
-
-    if not target_path.exists():
-        log_error(f'Unable to archive "{target_path}"; path does not exist')
+    if not input_path.exists():
+        log_error(f'Unable to encrypt file "{input_path}"; file does not exist')
         return
 
-    subprocess.run(['7z', 'a', archive_path, target_path, f'-p{password}'], check=True, capture_output=True)
+    log_info(f'Encrypting file "{input_path}"')
+    encrypt_command = [
+        'openssl',
+        'enc',
+        '-aes-256-cbc',
+        '-md',
+        'sha512',
+        '-pbkdf2',
+        '-iter',
+        '10000',
+        '-salt',
+        '-k',
+        passphrase,
+        '-in',
+        input_path,
+        '-out',
+        output_path
+    ]
+
+    subprocess.run(encrypt_command, check=True, capture_output=True)
 
 
 def move_file(file: Path, destination_path: Path):
@@ -137,7 +150,7 @@ def validate_config(config_file: Path):
     config = load_config(config_file)
 
     try:
-        password = config['password']
+        password = config['passphrase']
         destination = config['destination_folder']
         target_paths = config['target_paths']
         cleanup = config['cleanup']
@@ -227,18 +240,27 @@ def main():
         sys.exit(1)
 
     # Archive all target paths
-    password = config['password']
     for path in config['target_paths']:
         add_to_archive(archive_path, Path(path), config['compress_level'])
+
+    # Encrypt archive
+    encrypted_path = archive_path.with_suffix(archive_path.suffix + '.enc')
+    if encrypted_path.exists():
+        log_error('Unable to output encrypted file "{encrypted_path}"; file already exists')
+        sys.exit(1)
+
+    passphrase = config['passphrase']
+    encrypt_file(archive_path, encrypted_path, passphrase)
 
     # Move archive to destination path
     if config['destination_folder']:
         destination_path = Path(config['destination_folder'])
-        move_file(archive_path, destination_path)
+        move_file(encrypted_path, destination_path)
 
     if (config['cleanup']):
         log_info(f'Deleting local archive file "{archive_path}"')
         archive_path.unlink()
+        encrypted_path.unlink()
 
     end_time = time.perf_counter()
     duration = end_time - start_time
