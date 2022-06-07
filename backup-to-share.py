@@ -60,16 +60,18 @@ def encrypt_file(input_path: Path, output_path: Path, passphrase: str):
     '''
 
     if not input_path.exists():
-        log_error(f'"{input_path}" does not exist - unable to encrypt file')
+        log_error(f'Input path "{input_path}" does not exist - unable to encrypt file')
         return
 
-    try:
-        subprocess.run(['openssl', 'help'], check=True, capture_output=True)
-    except FileNotFoundError:
+    if output_path.exists():
+        log_error(f'Output path "{output_path}" already exist - unable to encrypt file')
+        return
+
+    if not is_openssl_present():
         log_error('Openssl is not available on PATH variable - unable to encrypt archive')
         return
 
-    log_info(f'Encrypting file "{input_path}"')
+    log_info(f'Encrypting file "{input_path}" into "{output_path}"')
     encrypt_command = [
         'openssl',
         'enc',
@@ -89,6 +91,60 @@ def encrypt_file(input_path: Path, output_path: Path, passphrase: str):
     ]
 
     subprocess.run(encrypt_command, check=True, capture_output=True)
+
+
+def decrypt_file(input_path: Path, output_path: Path, passphrase: str):
+    '''
+    Decrypts a file using openssl and AES-256.
+    '''
+
+    if not input_path.exists():
+        log_error(f'Input path "{input_path}" does not exist - unable to decrypt file')
+        return
+
+    if output_path.exists():
+        log_error(f'Output path "{output_path}" already exist - unable to decrypt file')
+        return
+
+    if not is_openssl_present():
+        log_error('Openssl is not available on PATH variable - unable to decrypt archive')
+        return
+
+    log_info(f'Decrypting file "{input_path}" into "{output_path}"')
+    decrypt_command = [
+        'openssl',
+        'enc',
+        '-aes-256-cbc',
+        '-md',
+        'sha512',
+        '-pbkdf2',
+        '-iter',
+        '10000',
+        '-salt',
+        '-k',
+        passphrase,
+        '-in',
+        input_path,
+        '-out',
+        output_path,
+        '-d'
+    ]
+
+    subprocess.run(decrypt_command, check=True, capture_output=True)
+    log_info('Decryption complete')
+
+
+def is_openssl_present():
+    '''
+    Returns True if openssl is reachable via PATH, False otherwise.
+    '''
+
+    try:
+        subprocess.run(['openssl', 'help'], check=True, capture_output=True)
+    except FileNotFoundError:
+        return False
+
+    return True
 
 
 def move_file(file: Path, destination_path: Path):
@@ -216,6 +272,7 @@ def parse_args():
     parser.add_argument('-c', '--create-config', action='store_true', help='Create a new backup configuration file')
     parser.add_argument('-v', '--validate', action='store_true',
                         help='Validates JSON configuration file without performing backup')
+    parser.add_argument('-d', '--decrypt', type=str, default="", help='Decrypt archive file')
 
     return parser.parse_args()
 
@@ -237,6 +294,13 @@ def main():
     config = load_config(config_file)
     passphrase = config['passphrase']
     cleanup = config['cleanup']
+
+    # Perform decryption if requested
+    if args.decrypt:
+        input_path = Path(args.decrypt)
+        output_path = Path(input_path.with_name(input_path.stem))
+        decrypt_file(input_path, output_path, passphrase)
+        sys.exit()
 
     timestamp = get_full_timestamp()
     archive_path = Path(f'Backup-{timestamp}.zip')
