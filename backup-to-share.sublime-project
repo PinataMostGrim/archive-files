@@ -1,0 +1,34 @@
+{
+	"folders":
+	[
+		{
+			"path": ".",
+			"folder_exclude_patterns": [".venv"],
+		}
+	],
+	"settings":
+	{
+		"LSP":
+		{
+			"LSP-pyright":
+			{
+				"enabled": true
+			}
+		}
+	},
+	"build_systems":
+    [
+		{
+		    "name": "Run backup to share",
+		    "cmd": ["pipenv", "run", "python", "backup-to-share.py", "test.json"],
+		    "windows":
+		    {
+		    	"cmd": ["pipenv", "run", "python", "backup-to-share.py", "test.json"],
+		    },
+		    "selector": "source.python",
+		    "env": {"PYTHONIOENCODING": "utf-8"},
+		    "file_regex": "^\\s*File \"(...*?)\", line ([0-9]*)",
+		    "file_patterns": ["backup-to-share.py"],
+		},
+    ]
+}
