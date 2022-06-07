@@ -17,7 +17,6 @@ import time
 from datetime import datetime
 from json.decoder import JSONDecodeError
 from pathlib import Path
-from subprocess import PIPE, STDOUT
 from zipfile import ZipFile, ZIP_DEFLATED
 
 
@@ -66,8 +65,8 @@ def encrypt_file(input_path: Path, output_path: Path, passphrase: str):
 
     try:
         subprocess.run(['openssl', 'help'], check=True, capture_output=True)
-    except FileNotFoundError as ex:
-        log_error(f'Openssl is not available on PATH variable - unable to encrypt archive')
+    except FileNotFoundError:
+        log_error('Openssl is not available on PATH variable - unable to encrypt archive')
         return
 
     log_info(f'Encrypting file "{input_path}"')
@@ -141,7 +140,7 @@ def load_config(config_file: Path):
     try:
         with open(config_file, "r") as read_file:
             config_data = json.load(read_file)
-    except JSONDecodeError as ex:
+    except JSONDecodeError:
         log_error(f'Invalid configuration file: "{config_file}"')
         raise
 
@@ -160,8 +159,8 @@ def validate_config(config_file: Path):
         destination = config['destination_folder']
         target_paths = config['target_paths']
         cleanup = config['cleanup']
-        cleanup = config['compress_level']
-    except KeyError as ex:
+        compress_level = config['compress_level']
+    except KeyError:
         log_error(f'Configuration file "{config_file}" is missing a required key')
         raise
 
