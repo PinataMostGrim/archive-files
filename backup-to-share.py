@@ -26,6 +26,7 @@ DEFAULT_CONFIG = {
     "target_paths": [
         r"",
     ],
+    "archive_prefix": "Backup",
     "cleanup": False,
     "compress_level": 9
 }
@@ -37,6 +38,7 @@ class Config(object):
             self.passphrase = config['passphrase'] if 'passphrase' in config else ""
             self.destination_folder = config['destination_folder'] if 'destination_folder' in config else ""
             self.target_paths = config['target_paths']
+            self.archive_prefix = config['archive_prefix'] if 'archive_prefix' in config else "Backup"
             self.cleanup = config['cleanup'] if 'cleanup' in config else False
             self.compress_level = config['compress_level'] if 'compress_level' in config else 9
         except KeyError as ex:
@@ -315,7 +317,7 @@ def main():
         sys.exit()
 
     timestamp = get_full_timestamp()
-    archive_path = Path(f'Backup-{timestamp}.zip')
+    archive_path = Path(f'{config.archive_prefix}-{timestamp}.zip')
     log_info(f'Backing up files to "{archive_path}"')
 
     if (archive_path.exists()):
