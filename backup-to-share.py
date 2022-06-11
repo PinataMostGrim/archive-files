@@ -33,11 +33,15 @@ DEFAULT_CONFIG = {
 
 class Config(object):
     def __init__(self, config: dict):
-        self.passphrase = config['passphrase'] if 'passphrase' in config else ""
-        self.destination_folder = config['destination_folder'] if 'destination_folder' in config else ""
-        self.target_paths = config['target_paths']
-        self.cleanup = config['cleanup'] if 'cleanup' in config else False
-        self.compress_level = config['compress_level'] if 'compress_level' in config else 9
+        try:
+            self.passphrase = config['passphrase'] if 'passphrase' in config else ""
+            self.destination_folder = config['destination_folder'] if 'destination_folder' in config else ""
+            self.target_paths = config['target_paths']
+            self.cleanup = config['cleanup'] if 'cleanup' in config else False
+            self.compress_level = config['compress_level'] if 'compress_level' in config else 9
+        except KeyError as ex:
+            log_error(f'Configuration file is missing a required key {ex}')
+            raise
 
 
 class BackupResult(object):
@@ -228,14 +232,7 @@ def validate_config(config_file: Path):
     Loads the specified configuration file to see if JSON deserialization works.
     '''
 
-    config = load_config(config_file)
-
-    try:
-        target_paths = config['target_paths']
-    except KeyError:
-        log_error(f'Configuration file "{config_file}" is missing a required key')
-        raise
-
+    _ = load_config(config_file)
     log_info(f'Configuration file "{config_file}" validated')
 
 
