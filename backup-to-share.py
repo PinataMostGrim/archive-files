@@ -241,13 +241,13 @@ def get_human_readable_duration(seconds):
     Returns a value of seconds converted into a human readable, time formatted string.
     '''
 
-    hours = seconds // 3600
-    minutes = seconds // 60 % 60
-    seconds = seconds % 60
+    hours = int(seconds // 3600)
+    minutes = int(seconds // 60 % 60)
+    seconds = int(seconds % 60)
 
-    hour_string = 'hours' if hours > 1 else 'hour'
-    minute_string = 'minutes' if minutes > 1 else 'minute'
-    second_string = 'seconds' if seconds > 1 else 'second'
+    hour_string = 'hour' if hours == 1 else 'hours'
+    minute_string = 'minute' if minutes == 1 else 'minutes'
+    second_string = 'second' if seconds == 1 else 'seconds'
 
     if hours > 0:
         return f'{hours} {hour_string}, {minutes} {minute_string} and {seconds:0.0f} {second_string}'
