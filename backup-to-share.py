@@ -31,16 +31,36 @@ DEFAULT_CONFIG = {
 }
 
 
+class Config(object):
+    def __init__(self, config: dict):
+        self.passphrase = config['passphrase'] if 'passphrase' in config else ""
+        self.destination_folder = config['destination_folder'] if 'destination_folder' in config else ""
+        self.target_paths = config['target_paths']
+        self.cleanup = config['cleanup'] if 'cleanup' in config else False
+        self.compress_level = config['compress_level'] if 'compress_level' in config else 9
+
+
+class BackupResult(object):
+    def __init__(self):
+        self.move_archive = False
+        self.archive_moved = False
+        self.move_encrypted = False
+        self.encrypted_moved = False
+        self.archive_encrypted = False
+        self.cleanup_archive = False
+        self.cleanup_encrypted = False
+
+
 def add_to_archive(archive_path: Path, target_path: Path, compress_level: int = 9):
     '''
     Adds the target path to an archive.
     '''
 
-    log_info(f'Archiving "{target_path}"')
-
     if not target_path.exists():
         log_error(f'"{target_path}" does not exist - unable to archive')
         return
+
+    log_info(f'Archiving "{target_path}"')
 
     with ZipFile(archive_path, mode='a', compression=ZIP_DEFLATED, compresslevel=compress_level) as archive:
         if target_path.is_dir():
@@ -50,8 +70,8 @@ def add_to_archive(archive_path: Path, target_path: Path, compress_level: int = 
                     arcname=file_path.relative_to(target_path.anchor))
         else:
             archive.write(
-                    target_path,
-                    arcname=target_path.relative_to(target_path.anchor))
+                target_path,
+                arcname=target_path.relative_to(target_path.anchor))
 
 
 def encrypt_file(input_path: Path, output_path: Path, passphrase: str):
@@ -67,7 +87,7 @@ def encrypt_file(input_path: Path, output_path: Path, passphrase: str):
         log_error(f'Output path "{output_path}" already exist - unable to encrypt file')
         return
 
-    if not is_openssl_present():
+    if not has_openssl():
         log_error('Openssl is not available on PATH variable - unable to encrypt archive')
         return
 
@@ -106,7 +126,7 @@ def decrypt_file(input_path: Path, output_path: Path, passphrase: str):
         log_error(f'Output path "{output_path}" already exist - unable to decrypt file')
         return
 
-    if not is_openssl_present():
+    if not has_openssl():
         log_error('Openssl is not available on PATH variable - unable to decrypt archive')
         return
 
@@ -134,7 +154,7 @@ def decrypt_file(input_path: Path, output_path: Path, passphrase: str):
     log_info('Decryption complete')
 
 
-def is_openssl_present():
+def has_openssl():
     '''
     Returns True if openssl is reachable via PATH, False otherwise.
     '''
@@ -200,7 +220,7 @@ def load_config(config_file: Path):
         log_error(f'Invalid configuration file: "{config_file}"')
         raise
 
-    return config_data
+    return Config(config_data)
 
 
 def validate_config(config_file: Path):
@@ -211,11 +231,7 @@ def validate_config(config_file: Path):
     config = load_config(config_file)
 
     try:
-        password = config['passphrase']
-        destination = config['destination_folder']
         target_paths = config['target_paths']
-        cleanup = config['cleanup']
-        compress_level = config['compress_level']
     except KeyError:
         log_error(f'Configuration file "{config_file}" is missing a required key')
         raise
@@ -292,14 +308,13 @@ def main():
         sys.exit()
 
     config = load_config(config_file)
-    passphrase = config['passphrase']
-    cleanup = config['cleanup']
+    results = BackupResult()
 
     # Perform decryption if requested
     if args.decrypt:
         input_path = Path(args.decrypt)
         output_path = Path(input_path.with_name(input_path.stem))
-        decrypt_file(input_path, output_path, passphrase)
+        decrypt_file(input_path, output_path, config.passphrase)
         sys.exit()
 
     timestamp = get_full_timestamp()
@@ -311,40 +326,48 @@ def main():
         sys.exit(1)
 
     # Archive all target paths
-    for path in config['target_paths']:
-        add_to_archive(archive_path, Path(path), config['compress_level'])
+    for path in config.target_paths:
+        add_to_archive(archive_path, Path(path), config.compress_level)
 
-    move_source_path = archive_path
+    results.move_archive = True if config.destination_folder and archive_path.exists else False
+    results.move_encrypted = False
 
     # Encrypt archive if config contains a passphrase
     encrypted_path = ""
-    if passphrase:
+    if config.passphrase:
         encrypted_path = archive_path.with_suffix(archive_path.suffix + '.enc')
-        move_source_path = encrypted_path
         if encrypted_path.exists():
             log_error('"{encrypted_path}" already exists - unable to output encrypted file ')
             sys.exit(1)
 
-        encrypt_file(archive_path, encrypted_path, passphrase)
+        encrypt_file(archive_path, encrypted_path, config.passphrase)
+        results.archive_encrypted = encrypted_path.exists()
+        results.move_archive = False
+        results.move_encrypted = True if config.destination_folder and encrypted_path.exists() else False
 
-        # Do not move anything if config contains a passphrase but the encryption hasn't succeeded
-        if not encrypted_path.exists():
+        if not results.archive_encrypted:
             log_error('Encryption failed - preventing archive relocation to destination folder')
-            move_source_path = ""
 
-            # Prevent cleanup on encryption failure so manual intervention can occur
-            cleanup = False
+    # Move output to destination path
+    if results.move_archive:
+        destination_path = Path(config.destination_folder)
+        move_file(archive_path, destination_path)
+        results.archive_moved = True
 
-    # Move archive to destination path
-    if config['destination_folder'] and move_source_path and move_source_path.exists():
-        destination_path = Path(config['destination_folder'])
-        move_file(move_source_path, destination_path)
+    if results.move_encrypted:
+        destination_path = Path(config.destination_folder)
+        move_file(encrypted_path, destination_path)
+        results.encrypted_moved = True
 
-    if (cleanup):
-        if archive_path.exists():
+    if (config.cleanup):
+        results.cleanup_archive = (results.archive_encrypted or results.archive_moved) and archive_path.exists()
+        results.cleanup_encrypted = results.archive_encrypted and results.encrypted_moved and encrypted_path.exists()
+
+        if results.cleanup_archive:
             log_info(f'Deleting local file "{archive_path}"')
             archive_path.unlink()
-        if encrypted_path and encrypted_path.exists():
+
+        if results.cleanup_encrypted:
             log_info(f'Deleting local file "{encrypted_path}"')
             encrypted_path.unlink()
 
