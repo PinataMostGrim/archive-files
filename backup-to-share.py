@@ -3,8 +3,13 @@ Compresses important files from local drive into a password protected archive an
 
 Requirements:
 - openssl accessible via the PATH environment variable
+- (Optional) 7z accessible via the PATH environment variable
 
 TODO:
+- Archive all valid paths in one command line execution of 7z
+    - Check all file paths before starting archive
+    - [link](https://superuser.com/a/940884)
+    - Time it to see if there is a savings
 '''
 
 import argparse
@@ -27,6 +32,8 @@ DEFAULT_CONFIG = {
         r"",
     ],
     "archive_prefix": "Backup",
+    "timestamp": True,
+    "use7z": False,
     "cleanup": False,
     "compress_level": 9
 }
@@ -39,6 +46,8 @@ class Config(object):
             self.destination_folder = config['destination_folder'] if 'destination_folder' in config else ""
             self.target_paths = config['target_paths']
             self.archive_prefix = config['archive_prefix'] if 'archive_prefix' in config else "Backup"
+            self.timestamp = config['timestamp'] if 'timestamp' in config else True
+            self.use7z = config['use7z'] if 'use7z' in config else False
             self.cleanup = config['cleanup'] if 'cleanup' in config else False
             self.compress_level = config['compress_level'] if 'compress_level' in config else 9
         except KeyError as ex:
@@ -78,6 +87,29 @@ def add_to_archive(archive_path: Path, target_path: Path, compress_level: int = 
             archive.write(
                 target_path,
                 arcname=target_path.relative_to(target_path.anchor))
+
+
+def add_to_archive_7z(archive_path: Path, target_path: Path, passphrase: str = ''):
+    '''
+    Adds the target path to the archive using 7z. Optionally password protects the archive
+    '''
+
+    if not target_path.exists():
+        log_error(f'"{target_path}" does not exist - unable to archive')
+        return
+
+    log_info(f'Archiving "{target_path}" using 7z')
+
+    encrypt_command = [
+        '7z',
+        'a',
+        archive_path,
+        target_path]
+
+    if passphrase:
+        encrypt_command.append(f'-p{passphrase}')
+
+    subprocess.run(encrypt_command, check=True, capture_output=True)
 
 
 def encrypt_file(input_path: Path, output_path: Path, passphrase: str):
@@ -167,6 +199,19 @@ def has_openssl():
 
     try:
         subprocess.run(['openssl', 'help'], check=True, capture_output=True)
+    except FileNotFoundError:
+        return False
+
+    return True
+
+
+def has_7z():
+    '''
+    Returns True if 7z is reachable via PATH, False otherwise.
+    '''
+
+    try:
+        subprocess.run(['7z'], check=True, capture_output=True)
     except FileNotFoundError:
         return False
 
@@ -292,39 +337,13 @@ def parse_args():
     return parser.parse_args()
 
 
-def main():
+def perform_backup_zipfile(archive_path: Path, config: Config):
+    '''
+    Perfoms the backup using ZipFile module and optionally encrypts it using openssl.
+    '''
 
-    start_time = time.perf_counter()
-    args = parse_args()
-
-    config_file = Path(args.config_file)
-    if args.create_config:
-        create_config(config_file)
-        sys.exit()
-
-    if args.validate:
-        validate_config(config_file)
-        sys.exit()
-
-    config = load_config(config_file)
     results = BackupResult()
 
-    # Perform decryption if requested
-    if args.decrypt:
-        input_path = Path(args.decrypt)
-        output_path = Path(input_path.with_name(input_path.stem))
-        decrypt_file(input_path, output_path, config.passphrase)
-        sys.exit()
-
-    timestamp = get_full_timestamp()
-    archive_path = Path(f'{config.archive_prefix}-{timestamp}.zip')
-    log_info(f'Backing up files to "{archive_path}"')
-
-    if (archive_path.exists()):
-        log_error(f'Archive path "{archive_path}" already exists - unable to create backup archive')
-        sys.exit(1)
-
-    # Archive all target paths
     for path in config.target_paths:
         add_to_archive(archive_path, Path(path), config.compress_level)
 
@@ -369,6 +388,73 @@ def main():
         if results.cleanup_encrypted:
             log_info(f'Deleting local file "{encrypted_path}"')
             encrypted_path.unlink()
+
+
+def perform_backup_7z(archive_path: Path, config: Config):
+    '''
+    Performs the backup using 7z.
+    '''
+
+    if not has_7z():
+        log_error('7z is not available on PATH variable - unable to create archive')
+        sys.exit(1)
+
+    results = BackupResult()
+
+    for path in config.target_paths:
+        add_to_archive_7z(archive_path, Path(path), config.passphrase)
+
+    # # Move output to destination path
+    if config.destination_folder and archive_path.exists():
+        destination_path = Path(config.destination_folder)
+        move_file(archive_path, destination_path)
+        results.archive_moved = True
+
+    if (config.cleanup):
+        log_info(f'Deleting local file "{archive_path}"')
+        archive_path.unlink()
+
+
+def main():
+
+    start_time = time.perf_counter()
+    args = parse_args()
+
+    config_file = Path(args.config_file)
+    if args.create_config:
+        create_config(config_file)
+        sys.exit()
+
+    if args.validate:
+        validate_config(config_file)
+        sys.exit()
+
+    config = load_config(config_file)
+
+    # Perform decryption if requested
+    if args.decrypt:
+        input_path = Path(args.decrypt)
+        output_path = Path(input_path.with_name(input_path.stem))
+        decrypt_file(input_path, output_path, config.passphrase)
+        sys.exit()
+
+    if config.timestamp:
+        timestamp = get_full_timestamp()
+        archive_path = Path(f'{config.archive_prefix}-{timestamp}.zip')
+    else:
+        archive_path = Path(f'{config.archive_prefix}.zip')
+
+    log_info(f'Backing up files to "{archive_path}"')
+
+    if (archive_path.exists()):
+        log_error(f'Archive path "{archive_path}" already exists - unable to create backup archive')
+        sys.exit(1)
+
+    # Perform the backup
+    if config.use7z:
+        perform_backup_7z(archive_path, config)
+    else:
+        perform_backup_zipfile(archive_path, config)
 
     end_time = time.perf_counter()
     duration = end_time - start_time
