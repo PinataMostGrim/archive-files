@@ -3,8 +3,6 @@ Compresses important files from local drive into a password protected archive an
 
 Requirements:
 - openssl accessible via the PATH environment variable
-
-TODO:
 '''
 
 import argparse

@@ -19,11 +19,11 @@
 	"build_systems":
     [
 		{
-		    "name": "Run backup to share",
-		    "cmd": ["pipenv", "run", "python", "backup-to-share.py", "test.json"],
+		    "name": "Run archive-files.py",
+		    "cmd": ["pipenv", "run", "python", "archive-files.py", "test.json"],
 		    "windows":
 		    {
-		    	"cmd": ["pipenv", "run", "python", "backup-to-share.py", "test.json"],
+		    	"cmd": ["pipenv", "run", "python", "archive-files.py", "test.json"],
 		    },
 		    "selector": "source.python",
 		    "env": {"PYTHONIOENCODING": "utf-8"},
