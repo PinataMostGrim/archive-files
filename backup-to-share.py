@@ -295,7 +295,6 @@ def parse_args():
 
 
 def main():
-
     start_time = time.perf_counter()
     args = parse_args()
 
@@ -324,7 +323,7 @@ def main():
     else:
         archive_path = Path(f'{config.archive_prefix}.zip')
 
-    log_info(f'Backing up files to "{archive_path}"')
+    log_info(f'Archiveing files to "{archive_path}"')
 
     if (archive_path.exists()):
         log_error(f'Archive path "{archive_path}" already exists - unable to create backup archive')
@@ -378,7 +377,7 @@ def main():
 
     end_time = time.perf_counter()
     duration = end_time - start_time
-    log_info(f'Backup completed in {get_human_readable_duration(duration)}')
+    log_info(f'Archive completed in {get_human_readable_duration(duration)}')
 
 
 if __name__ == '__main__':
