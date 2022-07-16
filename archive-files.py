@@ -3,6 +3,7 @@ Compresses files into an archive and optionally encrypts the archive or optional
 
 Requirements:
 - (Optional) openssl accessible via the PATH environment variable
+- (Optional) gpg accessible via the PATH environment variable
 '''
 
 import argparse
@@ -272,6 +273,78 @@ class OpenSSLArchiver(Archiver):
         return True
 
 
+class GPGArchiver(Archiver):
+    def encrypt_file(self, input_path: Path, output_path: Path):
+        ''' Encrypts a file using GPG and AES-256. '''
+        if not input_path.exists():
+            Logger.error(f'Input path "{input_path}" does not exist - unable to encrypt file')
+            return
+
+        if output_path.exists():
+            Logger.error(f'Output path "{output_path}" already exist - unable to encrypt file')
+            return
+
+        if not self.has_gpg():
+            Logger.error('GPG is not accessible through the PATH variable - unable to encrypt archive')
+            return
+
+        Logger.info(f'Encrypting file "{input_path}" into "{output_path}"')
+        encrypt_command = [
+            'gpg',
+            '--output',
+            str(output_path),
+            '--cipher-algo',
+            'AES256',
+            '--passphrase',
+            str(self.config.passphrase),
+            '--batch',
+            '-c',
+            input_path
+        ]
+
+        subprocess.run(encrypt_command, check=True, capture_output=True)
+
+    def decrypt_file(self, input_path: Path, output_path: Path):
+        ''' Decrypts a file using GPG and AES-256. '''
+        if not input_path.exists():
+            Logger.error(f'Input path "{input_path}" does not exist - unable to decrypt file')
+            return
+
+        if output_path.exists():
+            Logger.error(f'Output path "{output_path}" already exist - unable to decrypt file')
+            return
+
+        if not self.has_gpg():
+            Logger.error('GPG is not accessible through the PATH variable - unable to decrypt archive')
+            return
+
+        Logger.info(f'Decrypting file "{input_path}" into "{output_path}"')
+        decrypt_command = [
+            'gpg',
+            '--cipher-algo',
+            'AES256',
+            '--passphrase',
+            str(self.config.passphrase),
+            '--output',
+            str(output_path),
+            '--batch',
+            '--decrypt',
+            input_path
+        ]
+
+        subprocess.run(decrypt_command, check=True, capture_output=True)
+        Logger.info('Decryption complete')
+
+    def has_gpg(self) -> bool:
+        ''' Returns True if gpg is reachable via PATH, False otherwise. '''
+        try:
+            subprocess.run(['gpg', 'help'], check=True, capture_output=True)
+        except (FileNotFoundError, CalledProcessError):
+            return False
+
+        return True
+
+
 def create_config_file(config_file: Path):
     ''' Creates a default configuration file at the specified path. '''
     # TODO: An exception is thrown if the file has no extension
@@ -358,7 +431,11 @@ def main():
         sys.exit()
 
     config = load_config_file(config_file)
-    archiver = OpenSSLArchiver(config)
+    if (config.encryption_method.lower() == "gpg"):
+        archiver = GPGArchiver(config)
+    # Default to OpenSSL
+    else:
+        archiver = OpenSSLArchiver(config)
 
     # Perform decryption if requested
     if args.decrypt:
