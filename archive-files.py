@@ -162,13 +162,19 @@ class Archiver(object):
         with ZipFile(archive_path, mode='a', compression=ZIP_DEFLATED, compresslevel=compress_level) as archive:
             if target_path.is_dir():
                 for file_path in target_path.rglob("*"):
-                    archive.write(
-                        file_path,
-                        arcname=file_path.relative_to(target_path.anchor))
+                    try:
+                        archive.write(
+                            file_path,
+                            arcname=file_path.relative_to(target_path.anchor))
+                    except FileNotFoundError as ex:
+                        Logger.error(f'Error archiving file \'{file_path}\': {ex}')
             else:
-                archive.write(
-                    target_path,
-                    arcname=target_path.relative_to(target_path.anchor))
+                try:
+                    archive.write(
+                        target_path,
+                        arcname=target_path.relative_to(target_path.anchor))
+                except FileNotFoundError as ex:
+                    Logger.error(f'Error archiving file \'{file_path}\': {ex}')
 
     def move_file(self, file: Path, destination_path: Path):
         ''' Moves a file to a destination folder. '''
