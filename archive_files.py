@@ -353,8 +353,6 @@ class GPGArchiver(Archiver):
 
 def create_config_file(config_file: Path):
     ''' Creates a default configuration file at the specified path. '''
-    # TODO: An exception is thrown if the file has no extension
-    # Something to do with Path vs WindowsPath objects
     if (config_file.suffix != '.json'):
         config_file.suffix = config_file.with_suffix('.json')
 

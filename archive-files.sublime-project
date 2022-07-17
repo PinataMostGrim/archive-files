@@ -19,16 +19,11 @@
 	"build_systems":
     [
 		{
-		    "name": "Run archive-files.py",
-		    "cmd": ["pipenv", "run", "python", "archive-files.py", "test.json"],
-		    "windows":
-		    {
-		    	"cmd": ["pipenv", "run", "python", "archive-files.py", "test.json"],
-		    },
+		    "name": "Test run archive_files",
+		    "cmd": ["pipenv", "run", "python", "archive_files.py", "test.json"],
 		    "selector": "source.python",
 		    "env": {"PYTHONIOENCODING": "utf-8"},
 		    "file_regex": "^\\s*File \"(...*?)\", line ([0-9]*)",
-		    "file_patterns": ["backup-to-share.py"],
 		},
     ]
 }
