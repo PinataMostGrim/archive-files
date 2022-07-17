@@ -25,5 +25,13 @@
 		    "env": {"PYTHONIOENCODING": "utf-8"},
 		    "file_regex": "^\\s*File \"(...*?)\", line ([0-9]*)",
 		},
+		{
+		    "name": "Run tests",
+		    "cmd": ["pipenv", "run", "pytest", "$file"],
+		    "working_dir": "$project_path",
+		    "env": {"PYTHONIOENCODING": "utf-8"},
+		    "file_regex": "^\\s*File \"(...*?)\", line ([0-9]*)",
+		    "file_patterns": ["test_*.py"],
+		}
     ]
 }
