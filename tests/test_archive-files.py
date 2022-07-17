@@ -1,7 +1,9 @@
-import pytest
 import archive_files
+import pytest
+import re
 
 from archive_files import Config
+from archive_files import Logger
 
 
 @pytest.fixture
@@ -52,3 +54,46 @@ def test_configuration_requires_target_paths():
     with pytest.raises(KeyError):
         config = Config(empty_configuration)
 
+
+def test_logger_info(capsys, monkeypatch):
+    '''Test that Logger.info() has the proper prefix'''
+    def mock_get_short_timestamp():
+        return '16:34:43'
+
+    monkeypatch.setattr(Logger, 'get_short_timestamp', mock_get_short_timestamp)
+
+    Logger.info('Test message')
+    captured = capsys.readouterr()
+    assert captured.out == '[16:34:43][INFO]: Test message\n'
+
+
+def test_logger_error(capsys, monkeypatch):
+    '''Test that Logger.error() has the proper prefix'''
+    def mock_get_short_timestamp():
+        return '16:34:43'
+
+    monkeypatch.setattr(Logger, 'get_short_timestamp', mock_get_short_timestamp)
+
+    Logger.error('Test message')
+    captured = capsys.readouterr()
+    assert captured.out == '[16:34:43][ERROR]: Test message\n'
+
+
+def test_logger_get_short_timestamp():
+    '''
+    Test that Logger.get_short_timestamp() has the correct format
+    e.g. '17:07:19'
+    '''
+    timestamp = Logger.get_short_timestamp()
+    match = re.search(r'\d{2}:\d{2}:\d{2}', timestamp)
+    assert match is not None
+
+
+def test_logger_get_full_timestamp():
+    '''
+    Test that Logger.get_full_timestamp() has the correct format
+    e.g. '2022-07-17T170719'
+    '''
+    timestamp = Logger.get_full_timestamp()
+    match = re.search(r'\d{4}-\d{2}-\d{2}T\d{6}', timestamp)
+    assert match is not None
