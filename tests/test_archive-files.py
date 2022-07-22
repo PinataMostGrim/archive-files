@@ -3,6 +3,9 @@ import pytest
 import re
 
 from archive_files import Config, Logger, Archiver
+from pathlib import Path
+
+
 # Patches
 @pytest.fixture
 def patch_get_short_timestamp(monkeypatch):
@@ -12,7 +15,20 @@ def patch_get_short_timestamp(monkeypatch):
     monkeypatch.setattr(Logger, 'get_short_timestamp', mock_get_short_timestamp)
 
 
+@pytest.fixture
+def patch_get_full_timestamp(monkeypatch):
+    def mock_get_full_timestamp():
+        return '2022-07-22T160455'
+
+    monkeypatch.setattr(Logger, 'get_full_timestamp', mock_get_full_timestamp)
+
+
 # Config tests
+@pytest.fixture
+def basic_configuration():
+    return {'target_paths': ['test_file.txt']}
+
+
 @pytest.fixture
 def default_configuration():
     return {
@@ -98,6 +114,24 @@ def test_logger_get_full_timestamp():
 
 
 # Archiver tests
+def test_archiver_get_archive_path(basic_configuration, patch_get_full_timestamp):
+    ''' Test that 'Archiver.get_archive_path()'' returns valid Path objects '''
+    config = Config(basic_configuration)
+    config.timestamp = False
+    archiver = Archiver(config)
+
+    archive_path = archiver.get_archive_path()
+    assert str(archive_path) == 'Backup.zip'
+
+    archiver.config.archive_prefix = 'test_archive'
+    archive_path = archiver.get_archive_path()
+    assert str(archive_path) == 'test_archive.zip'
+
+    archiver.config.timestamp = True
+    archive_path = archiver.get_archive_path()
+    assert str(archive_path) == 'test_archive-2022-07-22T160455.zip'
+
+
 def test_archiver_encrypt_file(default_configuration):
     '''
     Tests that archiver correctly throws a NotImplementedError when encrypting a file.
