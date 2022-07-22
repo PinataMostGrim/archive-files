@@ -83,11 +83,7 @@ class Archiver(object):
     def perform_archive(self):
         ''' Performs archive and optional encryption. '''
 
-        if self.config.timestamp:
-            timestamp = Logger.get_full_timestamp()
-            archive_path = Path(f'{self.config.archive_prefix}-{timestamp}.zip')
-        else:
-            archive_path = Path(f'{self.config.archive_prefix}.zip')
+        archive_path = self.get_archive_path()
 
         Logger.info(f'Archiving files to "{archive_path}"')
 
@@ -146,6 +142,14 @@ class Archiver(object):
             if self.cleanup_encrypted:
                 Logger.info(f'Deleting local file "{encrypted_path}"')
                 encrypted_path.unlink()
+
+    def get_archive_path(self) -> Path:
+        ''' Returns a Path object for the archive. '''
+        if self.config.timestamp:
+            timestamp = Logger.get_full_timestamp()
+            return Path(f'{self.config.archive_prefix}-{timestamp}.zip')
+        else:
+            return Path(f'{self.config.archive_prefix}.zip')
 
     def add_to_archive(self, archive_path: Path, target_path: Path):
         ''' Adds the file or folder at target path to an archive. '''
