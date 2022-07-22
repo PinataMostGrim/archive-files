@@ -118,12 +118,12 @@ class Archiver(object):
 
         # Move output to destination path
         if self.move_archive:
-            destination_path = Path(self.config.destination_folder)
+            destination_path = Path(self.config.destination_folder) / archive_path.name
             self.move_file(archive_path, destination_path)
             self.archive_moved = True
 
         if self.move_encrypted:
-            destination_path = Path(self.config.destination_folder)
+            destination_path = Path(self.config.destination_folder) / encrypted_path.name
             self.move_file(encrypted_path, destination_path)
             self.encrypted_moved = True
 
@@ -180,18 +180,17 @@ class Archiver(object):
                 except FileNotFoundError as ex:
                     Logger.error(f'Error archiving file \'{file_path}\': {ex}')
 
-    def move_file(self, file: Path, destination_path: Path):
-        ''' Moves a file to a destination folder. '''
-        target_path = Path(destination_path / file)
-        Logger.info(f'Moving "{file}" to "{target_path}"')
+    def move_file(self, source_file: Path, destination_file: Path):
+        ''' Moves a file to a destination file path. '''
+        Logger.info(f'Moving "{source_file}" to "{destination_file}"')
 
-        if target_path.exists():
-            Logger.error(f'Target path "{target_path}" already exists - unable to move file to destination')
+        if destination_file.exists():
+            Logger.error(f'Target path "{destination_file}" already exists - unable to move file to destination')
             sys.exit(1)
 
         # shutil.copy() does not preserve file metadata. If this is something we need in
         # the future, use shutil.copy2() instead
-        shutil.copy(file, destination_path)
+        shutil.copy(source_file, destination_file)
 
     def encrypt_file(self, input_path: Path, output_path: Path):
         raise NotImplementedError
