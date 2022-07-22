@@ -20,22 +20,32 @@ def test_file() -> Path:
 
 
 @pytest.fixture
+def test_file2() -> Path:
+    return Path(__file__).parent / 'test_file2.txt'
+
+
+@pytest.fixture
 def test_archive() -> Path:
     return Path(__file__).parent / 'test-archive.zip'
 
 
 @pytest.fixture
-def fixture_setup_teardown_test_file(test_file, test_archive):
-    '''
-    Sets up a test file and tears down the test file and a test archive.
-    '''
+def setup_test_files(test_file, test_file2, test_archive):
+    ''' Sets up a test file and tears down the test file and a test archive. '''
     delete_file(test_file)
+    delete_file(test_file2)
     delete_file(test_archive)
 
     test_file.write_text('Test file contents')
-    yield 'fixture_setup_teardown_test_file'
+
+
+@pytest.fixture
+def teardown_test_files(test_file, test_file2, test_archive):
+    '''' Tears down a test file and test archive. '''
+    yield 'teardown_test_files'
 
     delete_file(test_file)
+    delete_file(test_file2)
     delete_file(test_archive)
 
 
@@ -147,7 +157,7 @@ def test_logger_get_full_timestamp():
 
 
 # Archiver tests
-def test_archiver_add_to_archive(test_file, test_archive, fixture_setup_teardown_test_file):
+def test_archiver_add_to_archive(test_file, test_archive, setup_test_files, teardown_test_files):
     ''' Tests that Archiver adds a test file to a test archive. '''
     archived_test_file = test_file.relative_to(test_file.anchor)
 
@@ -178,6 +188,24 @@ def test_archiver_get_archive_path(basic_configuration, patch_get_full_timestamp
     archiver.config.timestamp = True
     archive_path = archiver.get_archive_path()
     assert str(archive_path) == 'test_archive-2022-07-22T160455.zip'
+
+
+def test_archiver_move_file(test_file, test_file2, basic_configuration, setup_test_files, teardown_test_files):
+
+    config = Config(basic_configuration)
+    archiver = Archiver(config)
+    archiver.move_file(test_file, test_file2)
+
+    assert test_file2.exists()
+
+
+def test_archiver_move_file_safety(test_file, basic_configuration, setup_test_files, teardown_test_files):
+    '''Tests that 'Archiver.move_file()' will not overwrite an existing file. '''
+    config = Config(basic_configuration)
+    archiver = Archiver(config)
+
+    with pytest.raises(SystemExit):
+        archiver.move_file(test_file, test_file)
 
 
 def test_archiver_encrypt_file(default_configuration):
