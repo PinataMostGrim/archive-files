@@ -394,17 +394,25 @@ def get_human_readable_duration(seconds):
     minutes = int(seconds // 60 % 60)
     seconds = int(seconds % 60)
 
-    hour_string = 'hour' if hours == 1 else 'hours'
-    minute_string = 'minute' if minutes == 1 else 'minutes'
-    second_string = 'second' if seconds == 1 else 'seconds'
+    hours_word = 'hour' if hours == 1 else 'hours'
+    minutes_word = 'minute' if minutes == 1 else 'minutes'
+    seconds_word = 'second' if seconds == 1 else 'seconds'
 
-    if hours > 0:
-        return f'{hours} {hour_string}, {minutes} {minute_string} and {seconds:0.0f} {second_string}'
+    hours_string = f'{hours} {hours_word}' if hours > 0 else ''
+    minutes_string = f'{minutes} {minutes_word}' if minutes > 0 else ''
+    seconds_string = f'{seconds} {seconds_word}' if seconds > 0 else ''
 
-    if minutes > 0:
-        return f'{minutes} {minute_string} and {seconds:0.0f} {second_string}'
+    if hours != 0 and (minutes != 0 or seconds != 0):
+        hours_string = f'{hours_string}, '
+    if minutes != 0 and seconds != 0:
+        minutes_string = f'{minutes_string}, '
 
-    return f'{seconds:0.0f} {second_string}'
+    if seconds != 0 and (hours != 0 or minutes != 0):
+        seconds_string = f'and {seconds_string}'
+    elif minutes != 0 and hours != 0:
+        minutes_string = f'and {minutes_string}'
+
+    return f'{hours_string}{minutes_string}{seconds_string}'
 
 
 def parse_args():
