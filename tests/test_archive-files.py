@@ -159,4 +159,3 @@ def test_get_human_readable_duration():
     seconds = 3660
     human_readable = archive_files.get_human_readable_duration(seconds)
     assert human_readable == "1 hour, and 1 minute"
-    
