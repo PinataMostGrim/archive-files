@@ -97,3 +97,42 @@ def test_logger_get_full_timestamp():
     timestamp = Logger.get_full_timestamp()
     match = re.search(r'\d{4}-\d{2}-\d{2}T\d{6}', timestamp)
     assert match is not None
+
+
+# Main tests
+def test_get_human_readable_duration():
+    '''
+    Tests that 'get_human_readable_duration()' generates valid human readable timecode strings.
+    '''
+    seconds = 1
+    human_readable = archive_files.get_human_readable_duration(seconds)
+    assert human_readable == "1 second"
+
+    seconds = 2
+    human_readable = archive_files.get_human_readable_duration(seconds)
+    assert human_readable == "2 seconds"
+
+    seconds = 61
+    human_readable = archive_files.get_human_readable_duration(seconds)
+    assert human_readable == "1 minute, and 1 second"
+
+    seconds = 121
+    human_readable = archive_files.get_human_readable_duration(seconds)
+    assert human_readable == "2 minutes, and 1 second"
+
+    seconds = 3661
+    human_readable = archive_files.get_human_readable_duration(seconds)
+    assert human_readable == "1 hour, 1 minute, and 1 second"
+
+    seconds = 7261
+    human_readable = archive_files.get_human_readable_duration(seconds)
+    assert human_readable == "2 hours, 1 minute, and 1 second"
+
+    seconds = 3601
+    human_readable = archive_files.get_human_readable_duration(seconds)
+    assert human_readable == "1 hour, and 1 second"
+
+    seconds = 3660
+    human_readable = archive_files.get_human_readable_duration(seconds)
+    assert human_readable == "1 hour, and 1 minute"
+    
