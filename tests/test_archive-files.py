@@ -3,6 +3,13 @@ import pytest
 import re
 
 from archive_files import Config, Logger, Archiver
+# Patches
+@pytest.fixture
+def patch_get_short_timestamp(monkeypatch):
+    def mock_get_short_timestamp():
+        return '16:34:43'
+
+    monkeypatch.setattr(Logger, 'get_short_timestamp', mock_get_short_timestamp)
 
 
 # Config tests
@@ -56,25 +63,15 @@ def test_configuration_requires_target_paths():
 
 
 # Logger tests
-def test_logger_info(capsys, monkeypatch):
+def test_logger_info(capsys, patch_get_short_timestamp):
     '''Test that Logger.info() has the proper prefix'''
-    def mock_get_short_timestamp():
-        return '16:34:43'
-
-    monkeypatch.setattr(Logger, 'get_short_timestamp', mock_get_short_timestamp)
-
     Logger.info('Test message')
     captured = capsys.readouterr()
     assert captured.out == '[16:34:43][INFO]: Test message\n'
 
 
-def test_logger_error(capsys, monkeypatch):
+def test_logger_error(capsys, patch_get_short_timestamp):
     '''Test that Logger.error() has the proper prefix'''
-    def mock_get_short_timestamp():
-        return '16:34:43'
-
-    monkeypatch.setattr(Logger, 'get_short_timestamp', mock_get_short_timestamp)
-
     Logger.error('Test message')
     captured = capsys.readouterr()
     assert captured.out == '[16:34:43][ERROR]: Test message\n'
