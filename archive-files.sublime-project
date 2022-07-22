@@ -40,5 +40,12 @@
 		    "env": {"PYTHONIOENCODING": "utf-8"},
 		    "file_regex": "^\\s*File \"(...*?)\", line ([0-9]*)",
 		},
+		{
+			"name": "Format with black",
+			"cmd": ["pipenv", "run", "black", "$file", "-l", "120"],
+		    "selector": "source.python",
+		    "env": {"PYTHONIOENCODING": "utf-8"},
+		    "file_regex": "^\\s*File \"(...*?)\", line ([0-9]*)",
+		},
     ]
 }
