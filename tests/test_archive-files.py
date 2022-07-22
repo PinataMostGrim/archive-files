@@ -4,26 +4,41 @@ import re
 
 from archive_files import Config, Logger, Archiver
 from pathlib import Path
+from zipfile import ZipFile
 
 
-# Patches
+# Helpers
+def delete_file(file: Path):
+    if file.exists():
+        file.unlink()
+
+
+# Fixtures
 @pytest.fixture
-def patch_get_short_timestamp(monkeypatch):
-    def mock_get_short_timestamp():
-        return '16:34:43'
-
-    monkeypatch.setattr(Logger, 'get_short_timestamp', mock_get_short_timestamp)
+def test_file() -> Path:
+    return Path(__file__).parent / 'test_file.txt'
 
 
 @pytest.fixture
-def patch_get_full_timestamp(monkeypatch):
-    def mock_get_full_timestamp():
-        return '2022-07-22T160455'
-
-    monkeypatch.setattr(Logger, 'get_full_timestamp', mock_get_full_timestamp)
+def test_archive() -> Path:
+    return Path(__file__).parent / 'test-archive.zip'
 
 
-# Config tests
+@pytest.fixture
+def fixture_setup_teardown_test_file(test_file, test_archive):
+    '''
+    Sets up a test file and tears down the test file and a test archive.
+    '''
+    delete_file(test_file)
+    delete_file(test_archive)
+
+    test_file.write_text('Test file contents')
+    yield 'fixture_setup_teardown_test_file'
+
+    delete_file(test_file)
+    delete_file(test_archive)
+
+
 @pytest.fixture
 def basic_configuration():
     return {'target_paths': ['test_file.txt']}
@@ -45,6 +60,24 @@ def default_configuration():
     }
 
 
+# Patches
+@pytest.fixture
+def patch_get_short_timestamp(monkeypatch):
+    def mock_get_short_timestamp():
+        return '16:34:43'
+
+    monkeypatch.setattr(Logger, 'get_short_timestamp', mock_get_short_timestamp)
+
+
+@pytest.fixture
+def patch_get_full_timestamp(monkeypatch):
+    def mock_get_full_timestamp():
+        return '2022-07-22T160455'
+
+    monkeypatch.setattr(Logger, 'get_full_timestamp', mock_get_full_timestamp)
+
+
+# Config tests
 def test_configuration_initialization(default_configuration):
     '''Test that Config attributes are assigned from dictionary'''
     config = Config(default_configuration)
@@ -114,6 +147,21 @@ def test_logger_get_full_timestamp():
 
 
 # Archiver tests
+def test_archiver_add_to_archive(test_file, test_archive, fixture_setup_teardown_test_file):
+    ''' Tests that Archiver adds a test file to a test archive. '''
+    archived_test_file = test_file.relative_to(test_file.anchor)
+
+    config = Config({'target_paths': [str(test_file)]})
+    config.compress_level = 1
+
+    archiver = Archiver(config)
+    archiver.add_to_archive(test_archive, test_file)
+
+    with ZipFile(test_archive, mode='r') as zip_file:
+        files = zip_file.namelist()
+        assert str(archived_test_file.as_posix()) in files
+
+
 def test_archiver_get_archive_path(basic_configuration, patch_get_full_timestamp):
     ''' Test that 'Archiver.get_archive_path()'' returns valid Path objects '''
     config = Config(basic_configuration)
