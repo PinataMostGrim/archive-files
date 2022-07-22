@@ -2,10 +2,10 @@ import archive_files
 import pytest
 import re
 
-from archive_files import Config
-from archive_files import Logger
+from archive_files import Config, Logger, Archiver
 
 
+# Config tests
 @pytest.fixture
 def default_configuration():
     return {
@@ -55,6 +55,7 @@ def test_configuration_requires_target_paths():
         config = Config(empty_configuration)
 
 
+# Logger tests
 def test_logger_info(capsys, monkeypatch):
     '''Test that Logger.info() has the proper prefix'''
     def mock_get_short_timestamp():
@@ -97,6 +98,29 @@ def test_logger_get_full_timestamp():
     timestamp = Logger.get_full_timestamp()
     match = re.search(r'\d{4}-\d{2}-\d{2}T\d{6}', timestamp)
     assert match is not None
+
+
+# Archiver tests
+def test_archiver_encrypt_file(default_configuration):
+    '''
+    Tests that archiver correctly throws a NotImplementedError when encrypting a file.
+    '''
+    config = Config(default_configuration)
+    archiver = Archiver(config)
+
+    with pytest.raises(NotImplementedError):
+        archiver.encrypt_file('input_file', 'output_file')
+
+
+def test_archiver_decrypt_file(default_configuration):
+    '''
+    Tests that archiver correctly throws a NotImplementedError when attempting to decrypt a file.
+    '''
+    config = Config(default_configuration)
+    archiver = Archiver(config)
+
+    with pytest.raises(NotImplementedError):
+        archiver.decrypt_file('input_file', 'output_file')
 
 
 # Main tests
