@@ -89,7 +89,7 @@ def patch_get_full_timestamp(monkeypatch):
 
 # Config tests
 def test_configuration_initialization(default_configuration):
-    '''Test that Config attributes are assigned from dictionary'''
+    ''' Test that Config attributes are assigned from dictionary. '''
     config = Config(default_configuration)
     assert config.destination_folder == 'example_folder/'
     assert config.target_paths == ['test_file.txt']
@@ -102,7 +102,7 @@ def test_configuration_initialization(default_configuration):
 
 
 def test_configuration_default_values():
-    '''Test that Config attributes receive a default value'''
+    ''' Test that Config attributes receive a default value. '''
     config = Config({'target_paths': ['sample_file_name.txt']})
     assert config.destination_folder == ''
     assert config.passphrase == ''
@@ -114,8 +114,10 @@ def test_configuration_default_values():
 
 
 def test_configuration_requires_target_paths():
-    '''Tests that Config raises a KeyError if 'target_paths' is not present in the
-    initialization dictionary'''
+    '''
+    Tests that Config raises a KeyError if 'target_paths' is not present in the
+    initialization dictionary.
+    '''
     empty_configuration = {}
     with pytest.raises(KeyError):
         config = Config(empty_configuration)
@@ -123,14 +125,14 @@ def test_configuration_requires_target_paths():
 
 # Logger tests
 def test_logger_info(capsys, patch_get_short_timestamp):
-    '''Test that Logger.info() has the proper prefix'''
+    ''' Test that Logger.info() has the proper prefix. '''
     Logger.info('Test message')
     captured = capsys.readouterr()
     assert captured.out == '[16:34:43][INFO]: Test message\n'
 
 
 def test_logger_error(capsys, patch_get_short_timestamp):
-    '''Test that Logger.error() has the proper prefix'''
+    ''' Test that Logger.error() has the proper prefix. '''
     Logger.error('Test message')
     captured = capsys.readouterr()
     assert captured.out == '[16:34:43][ERROR]: Test message\n'
@@ -138,7 +140,7 @@ def test_logger_error(capsys, patch_get_short_timestamp):
 
 def test_logger_get_short_timestamp():
     '''
-    Test that Logger.get_short_timestamp() has the correct format
+    Test that Logger.get_short_timestamp() has the correct format.
     e.g. '17:07:19'
     '''
     timestamp = Logger.get_short_timestamp()
@@ -148,7 +150,7 @@ def test_logger_get_short_timestamp():
 
 def test_logger_get_full_timestamp():
     '''
-    Test that Logger.get_full_timestamp() has the correct format
+    Test that Logger.get_full_timestamp() has the correct format.
     e.g. '2022-07-17T170719'
     '''
     timestamp = Logger.get_full_timestamp()
@@ -173,7 +175,7 @@ def test_archiver_add_to_archive(test_file, test_archive, setup_test_files, tear
 
 
 def test_archiver_get_archive_path(basic_configuration, patch_get_full_timestamp):
-    ''' Test that 'Archiver.get_archive_path()'' returns valid Path objects '''
+    ''' Test that 'Archiver.get_archive_path()'' returns valid Path objects. '''
     config = Config(basic_configuration)
     config.timestamp = False
     archiver = Archiver(config)
@@ -233,7 +235,7 @@ def test_archiver_decrypt_file(default_configuration):
 # Main tests
 def test_get_human_readable_duration():
     '''
-    Tests that 'get_human_readable_duration()' generates valid human readable timecode strings.
+    Tests that 'get_human_readable_duration()' generates valid human readable time-code strings.
     '''
     seconds = 1
     human_readable = archive_files.get_human_readable_duration(seconds)
