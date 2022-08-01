@@ -1,4 +1,5 @@
 import archive_files
+import json
 import pytest
 import re
 
@@ -30,6 +31,11 @@ def test_archive() -> Path:
 
 
 @pytest.fixture
+def test_config_file() -> Path:
+    return Path(__file__).parent / 'test-config.json'
+
+
+@pytest.fixture
 def setup_test_files(test_file, test_file2, test_archive):
     ''' Sets up a test file and tears down the test file and a test archive. '''
     delete_file(test_file)
@@ -47,6 +53,14 @@ def teardown_test_files(test_file, test_file2, test_archive):
     delete_file(test_file)
     delete_file(test_file2)
     delete_file(test_archive)
+
+
+@pytest.fixture
+def setup_teardown_test_config(test_config_file):
+    ''' Ensures test configuration file is deleted before and after running a test. '''
+    delete_file(test_config_file)
+    yield 'teardown_test_config'
+    delete_file(test_config_file)
 
 
 @pytest.fixture
@@ -233,6 +247,43 @@ def test_archiver_decrypt_file(default_configuration):
 
 
 # Main tests
+def test_create_default_config(test_config_file, setup_teardown_test_config):
+    '''
+    Tests that 'archive_files.create_config_file()' creates a default configuration at
+    the given path.
+    '''
+    archive_files.create_default_config_file(test_config_file)
+
+    assert test_config_file.exists()
+
+    with open(test_config_file, 'r') as read_file:
+        config_data = json.load(read_file)
+    assert Config.DEFAULT_CONFIG['destination_folder'] == config_data['destination_folder']
+    assert Config.DEFAULT_CONFIG['target_paths'] == config_data['target_paths']
+    assert Config.DEFAULT_CONFIG['passphrase'] == config_data['passphrase']
+    assert Config.DEFAULT_CONFIG['encryption_method'] == config_data['encryption_method']
+    assert Config.DEFAULT_CONFIG['archive_prefix'] == config_data['archive_prefix']
+    assert Config.DEFAULT_CONFIG['timestamp'] == config_data['timestamp']
+    assert Config.DEFAULT_CONFIG['compress_level'] == config_data['compress_level']
+    assert Config.DEFAULT_CONFIG['cleanup'] == config_data['cleanup']
+
+
+def test_create_config_fails_on_overwrite(test_config_file, setup_teardown_test_config):
+    '''
+    Tests that 'archive_files.create_config_file()' fails to overwrite an existing configuration file.
+    '''
+    with open(test_config_file, 'w', encoding='utf-8') as f:
+        f.write('Test file contents')
+
+    with pytest.raises(SystemExit):
+        archive_files.create_default_config_file(test_config_file)
+
+    with open(test_config_file, 'r', encoding='utf-8') as f:
+        data = f.read()
+
+    assert data == 'Test file contents'
+
+
 def test_get_human_readable_duration():
     '''
     Tests that 'get_human_readable_duration()' generates valid human readable time-code strings.
