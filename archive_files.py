@@ -354,7 +354,7 @@ class GPGArchiver(Archiver):
         return True
 
 
-def create_config_file(config_file: Path):
+def create_default_config_file(config_file: Path):
     ''' Creates a default configuration file at the specified path. '''
     if (config_file.suffix != '.json'):
         config_file.suffix = config_file.with_suffix('.json')
@@ -438,7 +438,7 @@ def main():
 
     config_file = Path(args.config_file)
     if args.create_config:
-        create_config_file(config_file)
+        create_default_config_file(config_file)
         sys.exit()
 
     if args.validate:
