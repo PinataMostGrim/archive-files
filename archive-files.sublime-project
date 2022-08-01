@@ -19,30 +19,8 @@
 	"build_systems":
     [
 		{
-		    "name": "Run tests",
-		    "cmd": ["pipenv", "run", "pytest", "$file"],
-		    "working_dir": "$project_path",
-		    "env": {"PYTHONIOENCODING": "utf-8"},
-		    "file_regex": "^\\s*File \"(...*?)\", line ([0-9]*)",
-		    "file_patterns": ["test_*.py"],
-		    "variants":
-		    [
-		    	{
-		    		"name": "Run tests (with out capture)",
-		    		"cmd": ["pipenv", "run", "pytest", "--capture=no","$file"],
-		    	}
-		    ]
-		},
-		{
 		    "name": "Test run archive_files",
 		    "cmd": ["pipenv", "run", "python", "archive_files.py", "test.json"],
-		    "selector": "source.python",
-		    "env": {"PYTHONIOENCODING": "utf-8"},
-		    "file_regex": "^\\s*File \"(...*?)\", line ([0-9]*)",
-		},
-		{
-			"name": "Format with black",
-			"cmd": ["pipenv", "run", "black", "$file", "-l", "120"],
 		    "selector": "source.python",
 		    "env": {"PYTHONIOENCODING": "utf-8"},
 		    "file_regex": "^\\s*File \"(...*?)\", line ([0-9]*)",
