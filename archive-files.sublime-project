@@ -3,7 +3,7 @@
 	[
 		{
 			"path": ".",
-			"folder_exclude_patterns": [".venv"],
+			"folder_exclude_patterns": [".venv", ".pytest_cache", "__pycache__"],
 		}
 	],
 	"settings":
