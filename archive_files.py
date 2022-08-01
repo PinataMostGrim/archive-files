@@ -369,7 +369,7 @@ def create_default_config_file(config_file: Path):
     Logger.info(f'Configuration created at "{config_file}"')
 
 
-def load_config_file(config_file: Path):
+def load_config_file(config_file: Path) -> Config:
     ''' Loads configuration from the specified configuration file. '''
     if (not config_file.exists()):
         Logger.error(f'"{config_file}" does not exist - unable to load configuration file')
@@ -391,7 +391,7 @@ def validate_config(config_file: Path):
     Logger.info(f'Configuration file "{config_file}" validated')
 
 
-def get_human_readable_duration(seconds):
+def get_human_readable_duration(seconds) -> str:
     ''' Returns a value of seconds converted into a human readable, time formatted string. '''
     hours = int(seconds // 3600)
     minutes = int(seconds // 60 % 60)
