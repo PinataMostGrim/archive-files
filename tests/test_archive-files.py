@@ -69,7 +69,7 @@ def basic_configuration():
 
 
 @pytest.fixture
-def default_configuration():
+def test_configuration():
     return {
         'destination_folder': 'example_folder/',
         'target_paths': [
@@ -102,9 +102,9 @@ def patch_get_full_timestamp(monkeypatch):
 
 
 # Config tests
-def test_configuration_initialization(default_configuration):
+def test_configuration_initialization(test_configuration):
     ''' Test that Config attributes are assigned from dictionary. '''
-    config = Config(default_configuration)
+    config = Config(test_configuration)
     assert config.destination_folder == 'example_folder/'
     assert config.target_paths == ['test_file.txt']
     assert config.passphrase == 'password'
@@ -224,22 +224,22 @@ def test_archiver_move_file_safety(test_file, basic_configuration, setup_test_fi
         archiver.move_file(test_file, test_file)
 
 
-def test_archiver_encrypt_file(default_configuration):
+def test_archiver_encrypt_file(test_configuration):
     '''
     Tests that archiver correctly throws a NotImplementedError when encrypting a file.
     '''
-    config = Config(default_configuration)
+    config = Config(test_configuration)
     archiver = Archiver(config)
 
     with pytest.raises(NotImplementedError):
         archiver.encrypt_file('input_file', 'output_file')
 
 
-def test_archiver_decrypt_file(default_configuration):
+def test_archiver_decrypt_file(test_configuration):
     '''
     Tests that archiver correctly throws a NotImplementedError when attempting to decrypt a file.
     '''
-    config = Config(default_configuration)
+    config = Config(test_configuration)
     archiver = Archiver(config)
 
     with pytest.raises(NotImplementedError):
