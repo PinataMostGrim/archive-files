@@ -393,6 +393,7 @@ def validate_config(config_file: Path):
 
 def get_human_readable_duration(seconds) -> str:
     ''' Returns a value of seconds converted into a human readable, time formatted string. '''
+    seconds_float = seconds
     hours = int(seconds // 3600)
     minutes = int(seconds // 60 % 60)
     seconds = int(seconds % 60)
@@ -414,6 +415,9 @@ def get_human_readable_duration(seconds) -> str:
         seconds_string = f'and {seconds_string}'
     elif minutes != 0 and hours != 0:
         minutes_string = f'and {minutes_string}'
+
+    if hours == 0 and minutes == 0 and seconds == 0:
+        seconds_string = f"{seconds_float:.3f} {seconds_word}"
 
     return f'{hours_string}{minutes_string}{seconds_string}'
 
