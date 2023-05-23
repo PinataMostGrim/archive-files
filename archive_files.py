@@ -1,5 +1,5 @@
 '''
-Compresses files into an archive and optionally encrypts the archive or optionally moves the archive to a target destination.
+Compresses files into an archive and optionally encrypts the archive and/or optionally moves the archive to a target destination.
 
 Requirements:
 - (Optional) openssl accessible via the PATH environment variable
