@@ -1,10 +1,10 @@
-'''
+"""
 Compresses files into an archive and optionally encrypts the archive and/or optionally moves the archive to a target destination.
 
 Requirements:
 - (Optional) openssl accessible via the PATH environment variable
 - (Optional) gpg accessible via the PATH environment variable
-'''
+"""
 
 import argparse
 import json
@@ -37,27 +37,27 @@ class Config(object):
 
     def __init__(self, config: dict):
         try:
-            self.destination_folder = config['destination_folder'] if 'destination_folder' in config else ""
-            self.target_paths = config['target_paths']
-            self.passphrase = config['passphrase'] if 'passphrase' in config else ""
-            self.encryption_method = config['encryption_method'] if 'encryption_method' in config else "openssl"
-            self.archive_prefix = config['archive_prefix'] if 'archive_prefix' in config else "Backup"
-            self.timestamp = config['timestamp'] if 'timestamp' in config else True
-            self.compress_level = config['compress_level'] if 'compress_level' in config else 9
-            self.cleanup = config['cleanup'] if 'cleanup' in config else False
+            self.destination_folder = config["destination_folder"] if "destination_folder" in config else ""
+            self.target_paths = config["target_paths"]
+            self.passphrase = config["passphrase"] if "passphrase" in config else ""
+            self.encryption_method = config["encryption_method"] if "encryption_method" in config else "openssl"
+            self.archive_prefix = config["archive_prefix"] if "archive_prefix" in config else "Backup"
+            self.timestamp = config["timestamp"] if "timestamp" in config else True
+            self.compress_level = config["compress_level"] if "compress_level" in config else 9
+            self.cleanup = config["cleanup"] if "cleanup" in config else False
         except KeyError as ex:
-            Logger.error(f'Configuration file is missing a required key {ex}')
+            Logger.error(f"Configuration file is missing a required key {ex}")
             raise
 
 
 class Logger(object):
     @classmethod
     def info(cls, message: str):
-        print(f'[{Logger.get_short_timestamp()}][INFO]: {message}')
+        print(f"[{Logger.get_short_timestamp()}][INFO]: {message}")
 
     @classmethod
     def error(cls, message: str):
-        print(f'[{Logger.get_short_timestamp()}][ERROR]: {message}')
+        print(f"[{Logger.get_short_timestamp()}][ERROR]: {message}")
 
     @classmethod
     def get_short_timestamp(cls):
@@ -65,7 +65,7 @@ class Logger(object):
 
     @classmethod
     def get_full_timestamp(cls):
-        return datetime.now().strftime('%Y-%m-%dT%H%M%S')
+        return datetime.now().strftime("%Y-%m-%dT%H%M%S")
 
 
 class Archiver(object):
@@ -81,13 +81,13 @@ class Archiver(object):
         self.cleanup_encrypted = False
 
     def perform_archive(self):
-        ''' Performs archive and optional encryption. '''
+        """Performs archive and optional encryption."""
 
         archive_path = self.get_archive_path()
 
         Logger.info(f'Archiving files to "{archive_path}"')
 
-        if (archive_path.exists()):
+        if archive_path.exists():
             Logger.error(f'Archive path "{archive_path}" already exists - unable to create backup archive')
             sys.exit(1)
 
@@ -95,13 +95,12 @@ class Archiver(object):
         for path in self.config.target_paths:
             self.add_to_archive(archive_path, Path(path))
 
-        self.move_archive = True if self.config.destination_folder \
-            and archive_path.exists else False
+        self.move_archive = True if self.config.destination_folder and archive_path.exists else False
 
         # Encrypt archive if config contains a passphrase
         encrypted_path = ""
         if self.config.passphrase:
-            encrypted_path = archive_path.with_suffix(archive_path.suffix + '.enc')
+            encrypted_path = archive_path.with_suffix(archive_path.suffix + ".enc")
             if encrypted_path.exists():
                 Logger.error('"{encrypted_path}" already exists - unable to output encrypted file ')
                 sys.exit(1)
@@ -109,12 +108,10 @@ class Archiver(object):
             self.encrypt_file(archive_path, encrypted_path)
             self.archive_encrypted = encrypted_path.exists()
             self.move_archive = False
-            self.move_encrypted = True if self.config.destination_folder \
-                and encrypted_path.exists() \
-                else False
+            self.move_encrypted = True if self.config.destination_folder and encrypted_path.exists() else False
 
             if not self.archive_encrypted:
-                Logger.error('Encryption failed - preventing archive relocation to destination folder')
+                Logger.error("Encryption failed - preventing archive relocation to destination folder")
 
         # Move output to destination path
         if self.move_archive:
@@ -128,12 +125,9 @@ class Archiver(object):
             self.encrypted_moved = True
 
         # Cleanup
-        if (self.config.cleanup):
-            self.cleanup_archive = (self.archive_encrypted or self.archive_moved) \
-                and archive_path.exists()
-            self.cleanup_encrypted = self.archive_encrypted \
-                and self.encrypted_moved \
-                and encrypted_path.exists()
+        if self.config.cleanup:
+            self.cleanup_archive = (self.archive_encrypted or self.archive_moved) and archive_path.exists()
+            self.cleanup_encrypted = self.archive_encrypted and self.encrypted_moved and encrypted_path.exists()
 
             if self.cleanup_archive:
                 Logger.info(f'Deleting local file "{archive_path}"')
@@ -144,44 +138,40 @@ class Archiver(object):
                 encrypted_path.unlink()
 
     def get_archive_path(self) -> Path:
-        ''' Returns a Path object for the archive. '''
+        """Returns a Path object for the archive."""
         if self.config.timestamp:
             timestamp = Logger.get_full_timestamp()
-            return Path(f'{self.config.archive_prefix}-{timestamp}.zip')
+            return Path(f"{self.config.archive_prefix}-{timestamp}.zip")
         else:
-            return Path(f'{self.config.archive_prefix}.zip')
+            return Path(f"{self.config.archive_prefix}.zip")
 
     def add_to_archive(self, archive_path: Path, target_path: Path):
-        ''' Adds the file or folder at target path to an archive. '''
+        """Adds the file or folder at target path to an archive."""
         if not target_path.exists():
             Logger.error(f'"{target_path}" does not exist - unable to archive')
             return
 
         Logger.info(f'Archiving "{target_path}"')
 
-        compress_level = 0 if self.config.compress_level < 0 \
-            else 9 if self.config.compress_level > 9 \
-            else self.config.compress_level
+        compress_level = (
+            0 if self.config.compress_level < 0 else 9 if self.config.compress_level > 9 else self.config.compress_level
+        )
 
-        with ZipFile(archive_path, mode='a', compression=ZIP_DEFLATED, compresslevel=compress_level) as archive:
+        with ZipFile(archive_path, mode="a", compression=ZIP_DEFLATED, compresslevel=compress_level) as archive:
             if target_path.is_dir():
                 for file_path in target_path.rglob("*"):
                     try:
-                        archive.write(
-                            file_path,
-                            arcname=file_path.relative_to(target_path.anchor))
+                        archive.write(file_path, arcname=file_path.relative_to(target_path.anchor))
                     except FileNotFoundError as ex:
-                        Logger.error(f'Error archiving file \'{file_path}\': {ex}')
+                        Logger.error(f"Error archiving file '{file_path}': {ex}")
             else:
                 try:
-                    archive.write(
-                        target_path,
-                        arcname=target_path.relative_to(target_path.anchor))
+                    archive.write(target_path, arcname=target_path.relative_to(target_path.anchor))
                 except FileNotFoundError as ex:
-                    Logger.error(f'Error archiving file \'{file_path}\': {ex}')
+                    Logger.error(f"Error archiving file '{file_path}': {ex}")
 
     def move_file(self, source_file: Path, destination_file: Path):
-        ''' Moves a file to a destination file path. '''
+        """Moves a file to a destination file path."""
         Logger.info(f'Moving "{source_file}" to "{destination_file}"')
 
         if destination_file.exists():
@@ -201,7 +191,7 @@ class Archiver(object):
 
 class OpenSSLArchiver(Archiver):
     def encrypt_file(self, input_path: Path, output_path: Path):
-        ''' Encrypts a file using openssl and AES-256. '''
+        """Encrypts a file using openssl and AES-256."""
         if not input_path.exists():
             Logger.error(f'Input path "{input_path}" does not exist - unable to encrypt file')
             return
@@ -211,32 +201,32 @@ class OpenSSLArchiver(Archiver):
             return
 
         if not self.has_openssl():
-            Logger.error('Openssl is not accessible through the PATH variable - unable to encrypt archive')
+            Logger.error("Openssl is not accessible through the PATH variable - unable to encrypt archive")
             return
 
         Logger.info(f'Encrypting file "{input_path}" into "{output_path}"')
         encrypt_command = [
-            'openssl',
-            'enc',
-            '-aes-256-cbc',
-            '-md',
-            'sha512',
-            '-pbkdf2',
-            '-iter',
-            '10000',
-            '-salt',
-            '-k',
+            "openssl",
+            "enc",
+            "-aes-256-cbc",
+            "-md",
+            "sha512",
+            "-pbkdf2",
+            "-iter",
+            "10000",
+            "-salt",
+            "-k",
             self.config.passphrase,
-            '-in',
+            "-in",
             input_path,
-            '-out',
-            output_path
+            "-out",
+            output_path,
         ]
 
         subprocess.run(encrypt_command, check=True, capture_output=True)
 
     def decrypt_file(self, input_path: Path, output_path: Path):
-        ''' Decrypts a file using openssl and AES-256. '''
+        """Decrypts a file using openssl and AES-256."""
         if not input_path.exists():
             Logger.error(f'Input path "{input_path}" does not exist - unable to decrypt file')
             return
@@ -246,36 +236,36 @@ class OpenSSLArchiver(Archiver):
             return
 
         if not self.has_openssl():
-            Logger.error('Openssl is not accessible through the PATH variable - unable to decrypt archive')
+            Logger.error("Openssl is not accessible through the PATH variable - unable to decrypt archive")
             return
 
         Logger.info(f'Decrypting file "{input_path}" into "{output_path}"')
         decrypt_command = [
-            'openssl',
-            'enc',
-            '-aes-256-cbc',
-            '-md',
-            'sha512',
-            '-pbkdf2',
-            '-iter',
-            '10000',
-            '-salt',
-            '-k',
+            "openssl",
+            "enc",
+            "-aes-256-cbc",
+            "-md",
+            "sha512",
+            "-pbkdf2",
+            "-iter",
+            "10000",
+            "-salt",
+            "-k",
             self.config.passphrase,
-            '-in',
+            "-in",
             input_path,
-            '-out',
+            "-out",
             output_path,
-            '-d'
+            "-d",
         ]
 
         subprocess.run(decrypt_command, check=True, capture_output=True)
-        Logger.info('Decryption complete')
+        Logger.info("Decryption complete")
 
     def has_openssl(self) -> bool:
-        ''' Returns True if openssl is reachable via PATH, False otherwise. '''
+        """Returns True if openssl is reachable via PATH, False otherwise."""
         try:
-            subprocess.run(['openssl', 'help'], check=True, capture_output=True)
+            subprocess.run(["openssl", "help"], check=True, capture_output=True)
         except (FileNotFoundError, CalledProcessError):
             return False
 
@@ -284,7 +274,7 @@ class OpenSSLArchiver(Archiver):
 
 class GPGArchiver(Archiver):
     def encrypt_file(self, input_path: Path, output_path: Path):
-        ''' Encrypts a file using GPG and AES-256. '''
+        """Encrypts a file using GPG and AES-256."""
         if not input_path.exists():
             Logger.error(f'Input path "{input_path}" does not exist - unable to encrypt file')
             return
@@ -294,27 +284,27 @@ class GPGArchiver(Archiver):
             return
 
         if not self.has_gpg():
-            Logger.error('GPG is not accessible through the PATH variable - unable to encrypt archive')
+            Logger.error("GPG is not accessible through the PATH variable - unable to encrypt archive")
             return
 
         Logger.info(f'Encrypting file "{input_path}" into "{output_path}"')
         encrypt_command = [
-            'gpg',
-            '--output',
+            "gpg",
+            "--output",
             str(output_path),
-            '--cipher-algo',
-            'AES256',
-            '--passphrase',
+            "--cipher-algo",
+            "AES256",
+            "--passphrase",
             str(self.config.passphrase),
-            '--batch',
-            '-c',
-            input_path
+            "--batch",
+            "-c",
+            input_path,
         ]
 
         subprocess.run(encrypt_command, check=True, capture_output=True)
 
     def decrypt_file(self, input_path: Path, output_path: Path):
-        ''' Decrypts a file using GPG and AES-256. '''
+        """Decrypts a file using GPG and AES-256."""
         if not input_path.exists():
             Logger.error(f'Input path "{input_path}" does not exist - unable to decrypt file')
             return
@@ -324,30 +314,30 @@ class GPGArchiver(Archiver):
             return
 
         if not self.has_gpg():
-            Logger.error('GPG is not accessible through the PATH variable - unable to decrypt archive')
+            Logger.error("GPG is not accessible through the PATH variable - unable to decrypt archive")
             return
 
         Logger.info(f'Decrypting file "{input_path}" into "{output_path}"')
         decrypt_command = [
-            'gpg',
-            '--cipher-algo',
-            'AES256',
-            '--passphrase',
+            "gpg",
+            "--cipher-algo",
+            "AES256",
+            "--passphrase",
             str(self.config.passphrase),
-            '--output',
+            "--output",
             str(output_path),
-            '--batch',
-            '--decrypt',
-            input_path
+            "--batch",
+            "--decrypt",
+            input_path,
         ]
 
         subprocess.run(decrypt_command, check=True, capture_output=True)
-        Logger.info('Decryption complete')
+        Logger.info("Decryption complete")
 
     def has_gpg(self) -> bool:
-        ''' Returns True if gpg is reachable via PATH, False otherwise. '''
+        """Returns True if gpg is reachable via PATH, False otherwise."""
         try:
-            subprocess.run(['gpg', 'help'], check=True, capture_output=True)
+            subprocess.run(["gpg", "help"], check=True, capture_output=True)
         except (FileNotFoundError, CalledProcessError):
             return False
 
@@ -355,23 +345,25 @@ class GPGArchiver(Archiver):
 
 
 def create_default_config_file(config_file: Path):
-    ''' Creates a default configuration file at the specified path. '''
-    if (config_file.suffix != '.json'):
-        config_file.suffix = config_file.with_suffix('.json')
+    """Creates a default configuration file at the specified path."""
+    # TODO: An exception is thrown if the file has no extension
+    # Something to do with Path vs WindowsPath objects
+    if config_file.suffix != ".json":
+        config_file.suffix = config_file.with_suffix(".json")
 
-    if (config_file.exists()):
+    if config_file.exists():
         Logger.error(f'"{config_file}" already exists - unable to create backup configuration file')
         sys.exit(1)
 
-    with open(config_file, 'w') as write_file:
+    with open(config_file, "w") as write_file:
         json.dump(Config.DEFAULT_CONFIG, write_file, indent=2)
 
     Logger.info(f'Configuration created at "{config_file}"')
 
 
 def load_config_file(config_file: Path) -> Config:
-    ''' Loads configuration from the specified configuration file. '''
-    if (not config_file.exists()):
+    """Loads configuration from the specified configuration file."""
+    if not config_file.exists():
         Logger.error(f'"{config_file}" does not exist - unable to load configuration file')
         sys.exit(1)
 
@@ -386,51 +378,53 @@ def load_config_file(config_file: Path) -> Config:
 
 
 def validate_config(config_file: Path):
-    ''' Loads the specified configuration file to see if JSON deserialization works. '''
+    """Loads the specified configuration file to see if JSON deserialization works."""
     _ = load_config_file(config_file)
     Logger.info(f'Configuration file "{config_file}" validated')
 
 
 def get_human_readable_duration(seconds) -> str:
-    ''' Returns a value of seconds converted into a human readable, time formatted string. '''
+    """Returns a value of seconds converted into a human readable, time formatted string."""
     seconds_float = seconds
     hours = int(seconds // 3600)
     minutes = int(seconds // 60 % 60)
     seconds = int(seconds % 60)
 
-    hours_word = 'hour' if hours == 1 else 'hours'
-    minutes_word = 'minute' if minutes == 1 else 'minutes'
-    seconds_word = 'second' if seconds == 1 else 'seconds'
+    hours_word = "hour" if hours == 1 else "hours"
+    minutes_word = "minute" if minutes == 1 else "minutes"
+    seconds_word = "second" if seconds == 1 else "seconds"
 
-    hours_string = f'{hours} {hours_word}' if hours > 0 else ''
-    minutes_string = f'{minutes} {minutes_word}' if minutes > 0 else ''
-    seconds_string = f'{seconds} {seconds_word}' if seconds > 0 else ''
+    hours_string = f"{hours} {hours_word}" if hours > 0 else ""
+    minutes_string = f"{minutes} {minutes_word}" if minutes > 0 else ""
+    seconds_string = f"{seconds} {seconds_word}" if seconds > 0 else ""
 
     if hours != 0 and (minutes != 0 or seconds != 0):
-        hours_string = f'{hours_string}, '
+        hours_string = f"{hours_string}, "
     if minutes != 0 and seconds != 0:
-        minutes_string = f'{minutes_string}, '
+        minutes_string = f"{minutes_string}, "
 
     if seconds != 0 and (hours != 0 or minutes != 0):
-        seconds_string = f'and {seconds_string}'
+        seconds_string = f"and {seconds_string}"
     elif minutes != 0 and hours != 0:
-        minutes_string = f'and {minutes_string}'
+        minutes_string = f"and {minutes_string}"
 
     if hours == 0 and minutes == 0 and seconds == 0:
         seconds_string = f"{seconds_float:.3f} {seconds_word}"
 
-    return f'{hours_string}{minutes_string}{seconds_string}'
+    return f"{hours_string}{minutes_string}{seconds_string}"
 
 
 def parse_args():
-    ''' Parse and return command line args. '''
+    """Parse and return command line args."""
     parser = argparse.ArgumentParser(
-        description='Copies files and folders into a password protected archive and moves the archive to a target destination')
-    parser.add_argument('config_file', type=str, help='Backup configuration file')
-    parser.add_argument('-c', '--create-config', action='store_true', help='Create a new backup configuration file')
-    parser.add_argument('-v', '--validate', action='store_true',
-                        help='Validates JSON configuration file without performing backup')
-    parser.add_argument('-d', '--decrypt', type=str, default="", help='Decrypt archive file')
+        description="Copies files and folders into a password protected archive and moves the archive to a target destination"
+    )
+    parser.add_argument("config_file", type=str, help="Backup configuration file")
+    parser.add_argument("-c", "--create-config", action="store_true", help="Create a new backup configuration file")
+    parser.add_argument(
+        "-v", "--validate", action="store_true", help="Validates JSON configuration file without performing backup"
+    )
+    parser.add_argument("-d", "--decrypt", type=str, default="", help="Decrypt archive file")
 
     return parser.parse_args()
 
@@ -450,7 +444,7 @@ def main():
         sys.exit()
 
     config = load_config_file(config_file)
-    if (config.encryption_method.lower() == "gpg"):
+    if config.encryption_method.lower() == "gpg":
         archiver = GPGArchiver(config)
     # Default to OpenSSL
     else:
@@ -469,8 +463,8 @@ def main():
     end_time = time.perf_counter()
     duration = end_time - start_time
 
-    Logger.info(f'Archive completed in {get_human_readable_duration(duration)}')
+    Logger.info(f"Archive completed in {get_human_readable_duration(duration)}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
