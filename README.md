@@ -3,13 +3,13 @@ Command line application that archives configurations of files and folders and o
 the archive or moves it to a target destination. Encryption is performed using either system `openssl` or `gpg` using
 symmetric encryption (passphrase).
 
-Basic usage:
+### Basic usage:
 1. Create a default archive JSON configuration using `python3 archive_files -c [config file path]`
 2. Add files or folders to the configuration under the `python3 target_paths` array
 3. Validate the configuration using `python3 archive_files -v [config file path]`
 4. Perform the archive operation using `python3 archive_files [config file path]`
 
-Optional usage:
+### Optional usage:
 - Decrypt an encrypted archive using `python3 archive_files -d [encrypted archive file] [config file path]`
 
 
