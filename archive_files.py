@@ -162,12 +162,12 @@ class Archiver(object):
                 for file_path in target_path.rglob("*"):
                     try:
                         archive.write(file_path, arcname=file_path.relative_to(target_path.anchor))
-                    except FileNotFoundError as ex:
+                    except (FileNotFoundError, PermissionError) as ex:
                         Logger.error(f"Error archiving file '{file_path}': {ex}")
             else:
                 try:
                     archive.write(target_path, arcname=target_path.relative_to(target_path.anchor))
-                except FileNotFoundError as ex:
+                except (FileNotFoundError, PermissionError) as ex:
                     Logger.error(f"Error archiving file '{file_path}': {ex}")
 
     def move_file(self, source_file: Path, destination_file: Path):
