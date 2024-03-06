@@ -12,13 +12,11 @@ import shutil
 import subprocess
 import sys
 import time
-
 from datetime import datetime
-from enum import Enum
 from json.decoder import JSONDecodeError
 from pathlib import Path
 from subprocess import CalledProcessError
-from zipfile import ZipFile, ZIP_DEFLATED
+from zipfile import ZIP_DEFLATED, ZipFile
 
 
 class Config(object):
@@ -37,13 +35,23 @@ class Config(object):
 
     def __init__(self, config: dict):
         try:
-            self.destination_folder = config["destination_folder"] if "destination_folder" in config else ""
+            self.destination_folder = (
+                config["destination_folder"] if "destination_folder" in config else ""
+            )
             self.target_paths = config["target_paths"]
             self.passphrase = config["passphrase"] if "passphrase" in config else ""
-            self.encryption_method = config["encryption_method"] if "encryption_method" in config else "openssl"
-            self.archive_prefix = config["archive_prefix"] if "archive_prefix" in config else "Backup"
+            self.encryption_method = (
+                config["encryption_method"]
+                if "encryption_method" in config
+                else "openssl"
+            )
+            self.archive_prefix = (
+                config["archive_prefix"] if "archive_prefix" in config else "Backup"
+            )
             self.timestamp = config["timestamp"] if "timestamp" in config else True
-            self.compress_level = config["compress_level"] if "compress_level" in config else 9
+            self.compress_level = (
+                config["compress_level"] if "compress_level" in config else 9
+            )
             self.cleanup = config["cleanup"] if "cleanup" in config else False
         except KeyError as ex:
             Logger.error(f"Configuration file is missing a required key {ex}")
@@ -88,30 +96,42 @@ class Archiver(object):
         Logger.info(f'Archiving files to "{archive_path}"')
 
         if archive_path.exists():
-            Logger.error(f'Archive path "{archive_path}" already exists - unable to create backup archive')
+            Logger.error(
+                f'Archive path "{archive_path}" already exists - unable to create backup archive'
+            )
             sys.exit(1)
 
         # Archive files
         for path in self.config.target_paths:
             self.add_to_archive(archive_path, Path(path))
 
-        self.move_archive = True if self.config.destination_folder and archive_path.exists else False
+        self.move_archive = (
+            True if self.config.destination_folder and archive_path.exists else False
+        )
 
         # Encrypt archive if config contains a passphrase
         encrypted_path = ""
         if self.config.passphrase:
             encrypted_path = archive_path.with_suffix(archive_path.suffix + ".enc")
             if encrypted_path.exists():
-                Logger.error('"{encrypted_path}" already exists - unable to output encrypted file ')
+                Logger.error(
+                    '"{encrypted_path}" already exists - unable to output encrypted file '
+                )
                 sys.exit(1)
 
             self.encrypt_file(archive_path, encrypted_path)
             self.archive_encrypted = encrypted_path.exists()
             self.move_archive = False
-            self.move_encrypted = True if self.config.destination_folder and encrypted_path.exists() else False
+            self.move_encrypted = (
+                True
+                if self.config.destination_folder and encrypted_path.exists()
+                else False
+            )
 
             if not self.archive_encrypted:
-                Logger.error("Encryption failed - preventing archive relocation to destination folder")
+                Logger.error(
+                    "Encryption failed - preventing archive relocation to destination folder"
+                )
 
         # Move output to destination path
         if self.move_archive:
@@ -120,14 +140,22 @@ class Archiver(object):
             self.archive_moved = True
 
         if self.move_encrypted:
-            destination_path = Path(self.config.destination_folder) / encrypted_path.name
+            destination_path = (
+                Path(self.config.destination_folder) / encrypted_path.name
+            )
             self.move_file(encrypted_path, destination_path)
             self.encrypted_moved = True
 
         # Cleanup
         if self.config.cleanup:
-            self.cleanup_archive = (self.archive_encrypted or self.archive_moved) and archive_path.exists()
-            self.cleanup_encrypted = self.archive_encrypted and self.encrypted_moved and encrypted_path.exists()
+            self.cleanup_archive = (
+                self.archive_encrypted or self.archive_moved
+            ) and archive_path.exists()
+            self.cleanup_encrypted = (
+                self.archive_encrypted
+                and self.encrypted_moved
+                and encrypted_path.exists()
+            )
 
             if self.cleanup_archive:
                 Logger.info(f'Deleting local file "{archive_path}"')
@@ -154,19 +182,32 @@ class Archiver(object):
         Logger.info(f'Archiving "{target_path}"')
 
         compress_level = (
-            0 if self.config.compress_level < 0 else 9 if self.config.compress_level > 9 else self.config.compress_level
+            0
+            if self.config.compress_level < 0
+            else 9
+            if self.config.compress_level > 9
+            else self.config.compress_level
         )
 
-        with ZipFile(archive_path, mode="a", compression=ZIP_DEFLATED, compresslevel=compress_level) as archive:
+        with ZipFile(
+            archive_path,
+            mode="a",
+            compression=ZIP_DEFLATED,
+            compresslevel=compress_level,
+        ) as archive:
             if target_path.is_dir():
                 for file_path in target_path.rglob("*"):
                     try:
-                        archive.write(file_path, arcname=file_path.relative_to(target_path.anchor))
+                        archive.write(
+                            file_path, arcname=file_path.relative_to(target_path.anchor)
+                        )
                     except (FileNotFoundError, PermissionError) as ex:
                         Logger.error(f"Error archiving file '{file_path}': {ex}")
             else:
                 try:
-                    archive.write(target_path, arcname=target_path.relative_to(target_path.anchor))
+                    archive.write(
+                        target_path, arcname=target_path.relative_to(target_path.anchor)
+                    )
                 except (FileNotFoundError, PermissionError) as ex:
                     Logger.error(f"Error archiving file '{file_path}': {ex}")
 
@@ -175,7 +216,9 @@ class Archiver(object):
         Logger.info(f'Moving "{source_file}" to "{destination_file}"')
 
         if destination_file.exists():
-            Logger.error(f'Target path "{destination_file}" already exists - unable to move file to destination')
+            Logger.error(
+                f'Target path "{destination_file}" already exists - unable to move file to destination'
+            )
             sys.exit(1)
 
         # shutil.copy() does not preserve file metadata. If this is something we need in
@@ -193,15 +236,21 @@ class OpenSSLArchiver(Archiver):
     def encrypt_file(self, input_path: Path, output_path: Path):
         """Encrypts a file using openssl and AES-256."""
         if not input_path.exists():
-            Logger.error(f'Input path "{input_path}" does not exist - unable to encrypt file')
+            Logger.error(
+                f'Input path "{input_path}" does not exist - unable to encrypt file'
+            )
             return
 
         if output_path.exists():
-            Logger.error(f'Output path "{output_path}" already exist - unable to encrypt file')
+            Logger.error(
+                f'Output path "{output_path}" already exist - unable to encrypt file'
+            )
             return
 
         if not self.has_openssl():
-            Logger.error("Openssl is not accessible through the PATH variable - unable to encrypt archive")
+            Logger.error(
+                "Openssl is not accessible through the PATH variable - unable to encrypt archive"
+            )
             return
 
         Logger.info(f'Encrypting file "{input_path}" into "{output_path}"')
@@ -228,15 +277,21 @@ class OpenSSLArchiver(Archiver):
     def decrypt_file(self, input_path: Path, output_path: Path):
         """Decrypts a file using openssl and AES-256."""
         if not input_path.exists():
-            Logger.error(f'Input path "{input_path}" does not exist - unable to decrypt file')
+            Logger.error(
+                f'Input path "{input_path}" does not exist - unable to decrypt file'
+            )
             return
 
         if output_path.exists():
-            Logger.error(f'Output path "{output_path}" already exist - unable to decrypt file')
+            Logger.error(
+                f'Output path "{output_path}" already exist - unable to decrypt file'
+            )
             return
 
         if not self.has_openssl():
-            Logger.error("Openssl is not accessible through the PATH variable - unable to decrypt archive")
+            Logger.error(
+                "Openssl is not accessible through the PATH variable - unable to decrypt archive"
+            )
             return
 
         Logger.info(f'Decrypting file "{input_path}" into "{output_path}"')
@@ -276,15 +331,21 @@ class GPGArchiver(Archiver):
     def encrypt_file(self, input_path: Path, output_path: Path):
         """Encrypts a file using GPG and AES-256."""
         if not input_path.exists():
-            Logger.error(f'Input path "{input_path}" does not exist - unable to encrypt file')
+            Logger.error(
+                f'Input path "{input_path}" does not exist - unable to encrypt file'
+            )
             return
 
         if output_path.exists():
-            Logger.error(f'Output path "{output_path}" already exist - unable to encrypt file')
+            Logger.error(
+                f'Output path "{output_path}" already exist - unable to encrypt file'
+            )
             return
 
         if not self.has_gpg():
-            Logger.error("GPG is not accessible through the PATH variable - unable to encrypt archive")
+            Logger.error(
+                "GPG is not accessible through the PATH variable - unable to encrypt archive"
+            )
             return
 
         Logger.info(f'Encrypting file "{input_path}" into "{output_path}"')
@@ -306,15 +367,21 @@ class GPGArchiver(Archiver):
     def decrypt_file(self, input_path: Path, output_path: Path):
         """Decrypts a file using GPG and AES-256."""
         if not input_path.exists():
-            Logger.error(f'Input path "{input_path}" does not exist - unable to decrypt file')
+            Logger.error(
+                f'Input path "{input_path}" does not exist - unable to decrypt file'
+            )
             return
 
         if output_path.exists():
-            Logger.error(f'Output path "{output_path}" already exist - unable to decrypt file')
+            Logger.error(
+                f'Output path "{output_path}" already exist - unable to decrypt file'
+            )
             return
 
         if not self.has_gpg():
-            Logger.error("GPG is not accessible through the PATH variable - unable to decrypt archive")
+            Logger.error(
+                "GPG is not accessible through the PATH variable - unable to decrypt archive"
+            )
             return
 
         Logger.info(f'Decrypting file "{input_path}" into "{output_path}"')
@@ -352,7 +419,9 @@ def create_default_config_file(config_file: Path):
         config_file.suffix = config_file.with_suffix(".json")
 
     if config_file.exists():
-        Logger.error(f'"{config_file}" already exists - unable to create backup configuration file')
+        Logger.error(
+            f'"{config_file}" already exists - unable to create backup configuration file'
+        )
         sys.exit(1)
 
     with open(config_file, "w") as write_file:
@@ -364,7 +433,9 @@ def create_default_config_file(config_file: Path):
 def load_config_file(config_file: Path) -> Config:
     """Loads configuration from the specified configuration file."""
     if not config_file.exists():
-        Logger.error(f'"{config_file}" does not exist - unable to load configuration file')
+        Logger.error(
+            f'"{config_file}" does not exist - unable to load configuration file'
+        )
         sys.exit(1)
 
     try:
@@ -420,17 +491,26 @@ def parse_args():
         description="Copies files and folders into a password protected archive and moves the archive to a target destination"
     )
     parser.add_argument("config_file", type=str, help="Backup configuration file")
-    parser.add_argument("-c", "--create-config", action="store_true", help="Create a new backup configuration file")
     parser.add_argument(
-        "-v", "--validate", action="store_true", help="Validates JSON configuration file without performing backup"
+        "-c",
+        "--create-config",
+        action="store_true",
+        help="Create a new backup configuration file",
     )
-    parser.add_argument("-d", "--decrypt", type=str, default="", help="Decrypt archive file")
+    parser.add_argument(
+        "-v",
+        "--validate",
+        action="store_true",
+        help="Validates JSON configuration file without performing backup",
+    )
+    parser.add_argument(
+        "-d", "--decrypt", type=str, default="", help="Decrypt archive file"
+    )
 
     return parser.parse_args()
 
 
 def main():
-
     start_time = time.perf_counter()
     args = parse_args()
 
