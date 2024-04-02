@@ -8,6 +8,7 @@ Requirements:
 
 import argparse
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -87,6 +88,10 @@ class Archiver(object):
         self.encrypted_moved = False
         self.cleanup_archive = False
         self.cleanup_encrypted = False
+        # Note: Required for ZIP file format compatibility
+        self.earliest_creation_date = time.mktime(
+            time.strptime("01/01/1980", "%m/%d/%Y")
+        )
 
     def perform_archive(self):
         """Performs archive and optional encryption."""
@@ -189,6 +194,35 @@ class Archiver(object):
             else self.config.compress_level
         )
 
+        def archive_file(archive: ZipFile, file_path: Path):
+            """Archives a file to the specified archive."""
+
+            try:
+                # Ensure file creation time is newer than January 1st, 1980 to avoid issues
+                # with ZIP file format
+                creation_time = os.path.getctime(file_path)
+                if creation_time < self.earliest_creation_date:
+                    os.utime(
+                        file_path,
+                        (
+                            self.earliest_creation_date,
+                            self.earliest_creation_date,
+                        ),
+                    )
+
+                archive.write(
+                    f"\\\\?\\{file_path}",
+                    arcname=file_path.relative_to(target_path.anchor),
+                )
+            except (
+                OSError,
+                PermissionError,
+                FileNotFoundError,
+                TypeError,
+                ValueError,
+            ) as ex:
+                Logger.error(f"Error archiving file '{file_path}': {ex}")
+
         with ZipFile(
             archive_path,
             mode="a",
@@ -197,16 +231,12 @@ class Archiver(object):
         ) as archive:
             if target_path.is_dir():
                 for file_path in target_path.rglob("*"):
-                    try:
-                        archive.write(
-                            file_path, arcname=file_path.relative_to(target_path.anchor)
-                        )
-                    except (FileNotFoundError, PermissionError, ValueError) as ex:
-                        Logger.error(f"Error archiving file '{file_path}': {ex}")
+                    archive_file(archive, file_path)
             else:
                 try:
                     archive.write(
-                        target_path, arcname=target_path.relative_to(target_path.anchor)
+                        f"\\\\?\\{target_path}",
+                        arcname=target_path.relative_to(target_path.anchor),
                     )
                 except (FileNotFoundError, PermissionError, ValueError) as ex:
                     Logger.error(f"Error archiving file '{file_path}': {ex}")
