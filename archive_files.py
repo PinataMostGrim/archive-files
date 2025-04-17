@@ -90,6 +90,12 @@ class Archiver(object):
         self.cleanup_archive = False
         self.cleanup_encrypted = False
 
+        # Statistics for tracking file processing
+        self.files_processed = 0
+        self.files_skipped = 0
+        self.files_failed = 0
+        self.failed_files = []
+
     def perform_archive(self):
         """Performs archive and optional encryption."""
 
@@ -106,6 +112,17 @@ class Archiver(object):
         # Archive files
         for path in self.config.target_paths:
             self.add_to_archive(archive_path, Path(path))
+
+        # Log summary of archiving results
+        Logger.info(f"Archive summary: {self.files_processed} files processed, {self.files_skipped} files skipped")
+        if self.files_failed > 0:
+            Logger.error(f"{self.files_failed} files failed to archive")
+            # Only show first 10 failed files to avoid flooding the log
+            if len(self.failed_files) > 10:
+                Logger.error(f"First 10 failed files: {', '.join(self.failed_files[:10])}")
+                Logger.error(f"... and {len(self.failed_files) - 10} more")
+            else:
+                Logger.error(f"Failed files: {', '.join(self.failed_files)}")
 
         self.move_archive = (
             True if self.config.destination_folder and archive_path.exists else False
@@ -191,37 +208,71 @@ class Archiver(object):
             else self.config.compress_level
         )
 
-        with ZipFile(
-            archive_path,
-            mode="a",
-            compression=ZIP_DEFLATED,
-            compresslevel=compress_level,
-        ) as archive:
-            if target_path.is_dir():
-                for file_path in target_path.rglob("*"):
+        try:
+            with ZipFile(
+                archive_path,
+                mode="a",
+                compression=ZIP_DEFLATED,
+                compresslevel=compress_level,
+            ) as archive:
+                if target_path.is_dir():
+                    # Process directory contents
+                    for file_path in target_path.rglob("*"):
+                        try:
+                            # Skip symlinks unless configured to follow them
+                            if file_path.is_symlink() and not self.config.follow_symlinks:
+                                Logger.info(f'Skipping symlink "{file_path}"')
+                                self.files_skipped += 1
+                                continue
+
+                            # Skip non-files (directories are automatically created when files are added)
+                            if not file_path.is_file():
+                                continue
+
+                            archive.write(
+                                file_path, arcname=file_path.relative_to(target_path.anchor)
+                            )
+                            self.files_processed += 1
+
+                        except (FileNotFoundError, PermissionError, ValueError, OSError) as ex:
+                            # Log error but continue with other files
+                            Logger.error(f"Error archiving file '{file_path}': {ex}")
+                            self.files_failed += 1
+                            self.failed_files.append(str(file_path))
+
+                        except Exception as ex:
+                            # Catch any other unforeseen exceptions
+                            Logger.error(f"Unexpected error when archiving '{file_path}': {ex}")
+                            self.files_failed += 1
+                            self.failed_files.append(str(file_path))
+                else:
+                    # Process single file
                     try:
                         # Skip symlinks unless configured to follow them
-                        if file_path.is_symlink() and not self.config.follow_symlinks:
-                            Logger.info(f'Skipping symlink "{file_path}"')
-                            continue
+                        if target_path.is_symlink() and not self.config.follow_symlinks:
+                            Logger.info(f'Skipping symlink "{target_path}"')
+                            self.files_skipped += 1
+                            return
 
                         archive.write(
-                            file_path, arcname=file_path.relative_to(target_path.anchor)
+                            target_path, arcname=target_path.relative_to(target_path.anchor)
                         )
-                    except (FileNotFoundError, PermissionError, ValueError) as ex:
-                        Logger.error(f"Error archiving file '{file_path}': {ex}")
-            else:
-                try:
-                    # Skip symlinks unless configured to follow them
-                    if target_path.is_symlink() and not self.config.follow_symlinks:
-                        Logger.info(f'Skipping symlink "{target_path}"')
-                        return
+                        self.files_processed += 1
 
-                    archive.write(
-                        target_path, arcname=target_path.relative_to(target_path.anchor)
-                    )
-                except (FileNotFoundError, PermissionError, ValueError) as ex:
-                    Logger.error(f"Error archiving file '{target_path}': {ex}")
+                    except (FileNotFoundError, PermissionError, ValueError, OSError) as ex:
+                        Logger.error(f"Error archiving file '{target_path}': {ex}")
+                        self.files_failed += 1
+                        self.failed_files.append(str(target_path))
+
+                    except Exception as ex:
+                        Logger.error(f"Unexpected error when archiving '{target_path}': {ex}")
+                        self.files_failed += 1
+                        self.failed_files.append(str(target_path))
+
+        except Exception as ex:
+            # This catches errors at the archive level (e.g., disk full, permissions)
+            Logger.error(f"Critical error creating archive: {ex}")
+            raise
 
     def move_file(self, source_file: Path, destination_file: Path):
         """Moves a file to a destination file path."""
