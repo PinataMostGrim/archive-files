@@ -31,6 +31,7 @@ class Config(object):
         "timestamp": True,
         "compress_level": 9,
         "cleanup": False,
+        "follow_symlinks": False,
     }
 
     def __init__(self, config: dict):
@@ -53,6 +54,7 @@ class Config(object):
                 config["compress_level"] if "compress_level" in config else 9
             )
             self.cleanup = config["cleanup"] if "cleanup" in config else False
+            self.follow_symlinks = config["follow_symlinks"] if "follow_symlinks" in config else False
         except KeyError as ex:
             Logger.error(f"Configuration file is missing a required key {ex}")
             raise
@@ -198,6 +200,11 @@ class Archiver(object):
             if target_path.is_dir():
                 for file_path in target_path.rglob("*"):
                     try:
+                        # Skip symlinks unless configured to follow them
+                        if file_path.is_symlink() and not self.config.follow_symlinks:
+                            Logger.info(f'Skipping symlink "{file_path}"')
+                            continue
+
                         archive.write(
                             file_path, arcname=file_path.relative_to(target_path.anchor)
                         )
@@ -205,11 +212,16 @@ class Archiver(object):
                         Logger.error(f"Error archiving file '{file_path}': {ex}")
             else:
                 try:
+                    # Skip symlinks unless configured to follow them
+                    if target_path.is_symlink() and not self.config.follow_symlinks:
+                        Logger.info(f'Skipping symlink "{target_path}"')
+                        return
+
                     archive.write(
                         target_path, arcname=target_path.relative_to(target_path.anchor)
                     )
                 except (FileNotFoundError, PermissionError, ValueError) as ex:
-                    Logger.error(f"Error archiving file '{file_path}': {ex}")
+                    Logger.error(f"Error archiving file '{target_path}': {ex}")
 
     def move_file(self, source_file: Path, destination_file: Path):
         """Moves a file to a destination file path."""
@@ -506,6 +518,12 @@ def parse_args():
     parser.add_argument(
         "-d", "--decrypt", type=str, default="", help="Decrypt archive file"
     )
+    parser.add_argument(
+        "-f",
+        "--follow-symlinks",
+        action="store_true",
+        help="Follow symbolic links when archiving (symlinks are ignored by default)",
+    )
 
     return parser.parse_args()
 
@@ -524,6 +542,10 @@ def main():
         sys.exit()
 
     config = load_config_file(config_file)
+    # Override config follow_symlinks with command line argument if provided
+    if args.follow_symlinks:
+        config.follow_symlinks = True
+
     if config.encryption_method.lower() == "gpg":
         archiver = GPGArchiver(config)
     # Default to OpenSSL

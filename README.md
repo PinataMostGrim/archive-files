@@ -11,6 +11,7 @@ symmetric encryption (passphrase).
 
 ### Optional usage:
 - Decrypt an encrypted archive using `python3 archive_files -d [encrypted archive file] [config file path]`
+- Follow symbolic links when archiving using `python3 archive_files -f [config file path]` (symlinks are ignored by default)
 
 
 ### Optional configuration:
@@ -21,6 +22,7 @@ symmetric encryption (passphrase).
 - `timestamp` specifies that a timestamp should be applied as a suffix to the archive
 - `compress_level` specifies the compression value used. Values must be in the range from 0-9.
 - `cleanup` specifies the intermediate archive should be removed on completion, if encryption or file relocation is enabled.
+- `follow_symlinks` specifies whether symbolic links should be followed when archiving. Default is `false`.
 
 
 ### Requirements
@@ -31,7 +33,7 @@ symmetric encryption (passphrase).
 
 ### Usage
 ```
-usage: archive_files.py [-h] [-c] [-v] [-d DECRYPT] config_file
+usage: archive_files.py [-h] [-c] [-v] [-d DECRYPT] [-f] config_file
 
 Copies files and folders into a password protected archive and moves the archive to a target destination
 
@@ -44,6 +46,7 @@ optional arguments:
   -v, --validate        Validates JSON configuration file without performing backup
   -d DECRYPT, --decrypt DECRYPT
                         Decrypt archive file
+  -f, --follow-symlinks Follow symbolic links when archiving (symlinks are ignored by default)
 ```
 
 Example configuration file:
@@ -60,6 +63,7 @@ Example configuration file:
   "archive_prefix": "Backup",
   "timestamp": true,
   "compress_level": 9,
-  "cleanup": false
+  "cleanup": false,
+  "follow_symlinks": false
 }
 ```
