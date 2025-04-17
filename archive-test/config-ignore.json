@@ -1,0 +1,11 @@
+{
+  "destination_folder": "[insert full path]/archive-files/archive-test/target",
+  "target_paths": [
+    "[insert full path]/archive-files/archive-test/source"
+  ],
+  "archive_prefix": "TestBackup",
+  "timestamp": true,
+  "compress_level": 9,
+  "cleanup": false,
+  "follow_symlinks": false
+}
