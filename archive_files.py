@@ -32,6 +32,7 @@ class Config(object):
         "compress_level": 9,
         "cleanup": False,
         "follow_symlinks": False,
+        "compression_folder": r"",
     }
 
     def __init__(self, config: dict):
@@ -55,6 +56,9 @@ class Config(object):
             )
             self.cleanup = config["cleanup"] if "cleanup" in config else False
             self.follow_symlinks = config["follow_symlinks"] if "follow_symlinks" in config else False
+            self.compression_folder = (
+                config["compression_folder"] if "compression_folder" in config else ""
+            )
         except KeyError as ex:
             Logger.error(f"Configuration file is missing a required key {ex}")
             raise
@@ -124,9 +128,8 @@ class Archiver(object):
             else:
                 Logger.error(f"Failed files: {', '.join(self.failed_files)}")
 
-        self.move_archive = (
-            True if self.config.destination_folder and archive_path.exists else False
-        )
+        # Check if archive needs to be moved to destination folder
+        self.move_archive = self.should_move_to_destination(archive_path)
 
         # Encrypt archive if config contains a passphrase
         encrypted_path = ""
@@ -141,11 +144,9 @@ class Archiver(object):
             self.encrypt_file(archive_path, encrypted_path)
             self.archive_encrypted = encrypted_path.exists()
             self.move_archive = False
-            self.move_encrypted = (
-                True
-                if self.config.destination_folder and encrypted_path.exists()
-                else False
-            )
+            
+            # Check if encrypted file needs to be moved to destination folder
+            self.move_encrypted = self.should_move_to_destination(encrypted_path)
 
             if not self.archive_encrypted:
                 Logger.error(
@@ -184,13 +185,30 @@ class Archiver(object):
                 Logger.info(f'Deleting local file "{encrypted_path}"')
                 encrypted_path.unlink()
 
+    def should_move_to_destination(self, file_path: Path) -> bool:
+        """Determines if a file should be moved to the destination folder."""
+        if not self.config.destination_folder:
+            return False
+        if not file_path.exists():
+            return False
+        
+        file_parent = file_path.parent.resolve()
+        destination_resolved = Path(self.config.destination_folder).resolve()
+        return file_parent != destination_resolved
+
     def get_archive_path(self) -> Path:
         """Returns a Path object for the archive."""
         if self.config.timestamp:
             timestamp = Logger.get_full_timestamp()
-            return Path(f"{self.config.archive_prefix}-{timestamp}.zip")
+            filename = f"{self.config.archive_prefix}-{timestamp}.zip"
         else:
-            return Path(f"{self.config.archive_prefix}.zip")
+            filename = f"{self.config.archive_prefix}.zip"
+        
+        # Use compression folder if specified, otherwise current directory
+        if self.config.compression_folder:
+            return Path(self.config.compression_folder) / filename
+        else:
+            return Path(filename)
 
     def add_to_archive(self, archive_path: Path, target_path: Path):
         """Adds the file or folder at target path to an archive."""
