@@ -144,7 +144,7 @@ class Archiver(object):
             self.encrypt_file(archive_path, encrypted_path)
             self.archive_encrypted = encrypted_path.exists()
             self.move_archive = False
-            
+
             # Check if encrypted file needs to be moved to destination folder
             self.move_encrypted = self.should_move_to_destination(encrypted_path)
 
@@ -191,7 +191,7 @@ class Archiver(object):
             return False
         if not file_path.exists():
             return False
-        
+
         file_parent = file_path.parent.resolve()
         destination_resolved = Path(self.config.destination_folder).resolve()
         return file_parent != destination_resolved
@@ -206,6 +206,16 @@ class Archiver(object):
         else:
             return level
 
+    def _handle_file_error(self, file_path: Path, error: Exception):
+        """Centralized error handling for file operations."""
+        if isinstance(error, (FileNotFoundError, PermissionError, ValueError, OSError)):
+            Logger.error(f"Error archiving file '{file_path}': {error}")
+        else:
+            Logger.error(f"Unexpected error when archiving '{file_path}': {error}")
+
+        self.files_failed += 1
+        self.failed_files.append(str(file_path))
+
     def get_archive_path(self) -> Path:
         """Returns a Path object for the archive."""
         if self.config.timestamp:
@@ -213,7 +223,7 @@ class Archiver(object):
             filename = f"{self.config.archive_prefix}-{timestamp}.zip"
         else:
             filename = f"{self.config.archive_prefix}.zip"
-        
+
         # Use compression folder if specified, otherwise current directory
         if self.config.compression_folder:
             return Path(self.config.compression_folder) / filename
@@ -256,17 +266,8 @@ class Archiver(object):
                             )
                             self.files_processed += 1
 
-                        except (FileNotFoundError, PermissionError, ValueError, OSError) as ex:
-                            # Log error but continue with other files
-                            Logger.error(f"Error archiving file '{file_path}': {ex}")
-                            self.files_failed += 1
-                            self.failed_files.append(str(file_path))
-
                         except Exception as ex:
-                            # Catch any other unforeseen exceptions
-                            Logger.error(f"Unexpected error when archiving '{file_path}': {ex}")
-                            self.files_failed += 1
-                            self.failed_files.append(str(file_path))
+                            self._handle_file_error(file_path, ex)
                 else:
                     # Process single file
                     try:
@@ -281,15 +282,8 @@ class Archiver(object):
                         )
                         self.files_processed += 1
 
-                    except (FileNotFoundError, PermissionError, ValueError, OSError) as ex:
-                        Logger.error(f"Error archiving file '{target_path}': {ex}")
-                        self.files_failed += 1
-                        self.failed_files.append(str(target_path))
-
                     except Exception as ex:
-                        Logger.error(f"Unexpected error when archiving '{target_path}': {ex}")
-                        self.files_failed += 1
-                        self.failed_files.append(str(target_path))
+                        self._handle_file_error(target_path, ex)
 
         except Exception as ex:
             # This catches errors at the archive level (e.g., disk full, permissions)
