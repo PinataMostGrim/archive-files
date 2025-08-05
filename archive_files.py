@@ -216,6 +216,20 @@ class Archiver(object):
         self.files_failed += 1
         self.failed_files.append(str(file_path))
 
+    def _should_skip_file(self, file_path: Path):
+        """Returns (should_skip, reason) for a given file path."""
+        if file_path.is_symlink() and not self.config.follow_symlinks:
+            return True, f'Skipping symlink "{file_path}"'
+        
+        if not file_path.is_file():
+            return True, ""  # Silent skip for directories
+        
+        # Future: ignore patterns will go here
+        # if self._matches_ignore_pattern(file_path):
+        #     return True, f'Skipping ignored file "{file_path}"'
+        
+        return False, ""
+
     def get_archive_path(self) -> Path:
         """Returns a Path object for the archive."""
         if self.config.timestamp:
@@ -251,14 +265,11 @@ class Archiver(object):
                     # Process directory contents
                     for file_path in target_path.rglob("*"):
                         try:
-                            # Skip symlinks unless configured to follow them
-                            if file_path.is_symlink() and not self.config.follow_symlinks:
-                                Logger.info(f'Skipping symlink "{file_path}"')
-                                self.files_skipped += 1
-                                continue
-
-                            # Skip non-files (directories are automatically created when files are added)
-                            if not file_path.is_file():
+                            should_skip, reason = self._should_skip_file(file_path)
+                            if should_skip:
+                                if reason:  # Only log if there's a reason
+                                    Logger.info(reason)
+                                    self.files_skipped += 1
                                 continue
 
                             archive.write(
@@ -271,10 +282,11 @@ class Archiver(object):
                 else:
                     # Process single file
                     try:
-                        # Skip symlinks unless configured to follow them
-                        if target_path.is_symlink() and not self.config.follow_symlinks:
-                            Logger.info(f'Skipping symlink "{target_path}"')
-                            self.files_skipped += 1
+                        should_skip, reason = self._should_skip_file(target_path)
+                        if should_skip:
+                            if reason:
+                                Logger.info(reason)
+                                self.files_skipped += 1
                             return
 
                         archive.write(
