@@ -196,6 +196,16 @@ class Archiver(object):
         destination_resolved = Path(self.config.destination_folder).resolve()
         return file_parent != destination_resolved
 
+    def _get_compression_level(self) -> int:
+        """Returns a valid compression level (0-9)."""
+        level = self.config.compress_level
+        if level < 0:
+            return 0
+        elif level > 9:
+            return 9
+        else:
+            return level
+
     def get_archive_path(self) -> Path:
         """Returns a Path object for the archive."""
         if self.config.timestamp:
@@ -218,13 +228,7 @@ class Archiver(object):
 
         Logger.info(f'Archiving "{target_path}"')
 
-        compress_level = (
-            0
-            if self.config.compress_level < 0
-            else 9
-            if self.config.compress_level > 9
-            else self.config.compress_level
-        )
+        compress_level = self._get_compression_level()
 
         try:
             with ZipFile(
