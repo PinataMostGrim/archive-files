@@ -7,6 +7,7 @@ Requirements:
 """
 
 import argparse
+import fnmatch
 import json
 import shutil
 import subprocess
@@ -33,6 +34,7 @@ class Config(object):
         "cleanup": False,
         "follow_symlinks": False,
         "compression_folder": r"",
+        "ignore_patterns": [],
     }
 
     def __init__(self, config: dict):
@@ -59,6 +61,7 @@ class Config(object):
             self.compression_folder = (
                 config["compression_folder"] if "compression_folder" in config else ""
             )
+            self.ignore_patterns = config["ignore_patterns"] if "ignore_patterns" in config else []
         except KeyError as ex:
             Logger.error(f"Configuration file is missing a required key {ex}")
             raise
@@ -216,18 +219,42 @@ class Archiver(object):
         self.files_failed += 1
         self.failed_files.append(str(file_path))
 
+    def _matches_ignore_pattern(self, file_path: Path) -> bool:
+        """Returns True if the file path matches any ignore pattern."""
+        if not self.config.ignore_patterns:
+            return False
+
+        # Check both the filename and the full path against patterns
+        filename = file_path.name
+        full_path_str = str(file_path)
+
+        for pattern in self.config.ignore_patterns:
+            # Match against filename (e.g., "*.tmp", "__pycache__")
+            if fnmatch.fnmatch(filename, pattern):
+                return True
+            # Match against full path (e.g., "**/node_modules/**", "temp/*")
+            if fnmatch.fnmatch(full_path_str, pattern):
+                return True
+            # Also check path with forward slashes for cross-platform compatibility
+            if fnmatch.fnmatch(full_path_str.replace('\\', '/'), pattern):
+                return True
+
+        return False
+
     def _should_skip_file(self, file_path: Path):
         """Returns (should_skip, reason) for a given file path."""
         if file_path.is_symlink() and not self.config.follow_symlinks:
             return True, f'Skipping symlink "{file_path}"'
-        
+
+        # Check ignore patterns first (applies to both files and directories)
+        if self._matches_ignore_pattern(file_path):
+            item_type = "directory" if file_path.is_dir() else "file"
+            return True, f'Skipping ignored {item_type} "{file_path}"'
+
+        # Skip non-files (directories are automatically created when files are added)
         if not file_path.is_file():
             return True, ""  # Silent skip for directories
-        
-        # Future: ignore patterns will go here
-        # if self._matches_ignore_pattern(file_path):
-        #     return True, f'Skipping ignored file "{file_path}"'
-        
+
         return False, ""
 
     def get_archive_path(self) -> Path:
