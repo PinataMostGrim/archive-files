@@ -1,0 +1,34 @@
+{
+  "destination_folder": "C:/Backups/Archives",
+  "passphrase": "your-secure-password-here",
+  "encryption_method": "openssl",
+  "archive_prefix": "MyBackup",
+  "timestamp": true,
+  "compress_level": 9,
+  "cleanup": true,
+  "follow_symlinks": false,
+  "compression_folder": "D:/temp",
+  "target_paths": [
+    "C:/Users/YourUsername/Documents/Projects",
+    "C:/Users/YourUsername/Documents/ImportantFiles",
+    "C:/Users/YourUsername/Desktop/WorkFiles"
+  ],
+  "ignore_patterns": [
+    "*.tmp",
+    "*.log",
+    "*.pyc",
+    "__pycache__",
+    "node_modules",
+    ".git",
+    "Library",
+    "Temp",
+    "Logs",
+    "UserSettings",
+    "*.egg-info",
+    "build/**",
+    "dist/*",
+    "Thumbs.db",
+    ".DS_Store",
+    "*.bak"
+  ]
+}

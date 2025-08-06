@@ -1,0 +1,24 @@
+{
+  "destination_folder": "D:/GameBackups",
+  "compression_folder": "C:/temp",
+  "passphrase": "unity-backup-password",
+  "archive_prefix": "UnityProject",
+  "timestamp": true,
+  "compress_level": 6,
+  "cleanup": true,
+  "target_paths": [
+    "C:/Users/YourUsername/UnityProjects/MyGame"
+  ],
+  "ignore_patterns": [
+    "Library",
+    "Temp",
+    "Logs",
+    "UserSettings",
+    "*.tmp",
+    "*.log",
+    "obj/**",
+    "bin/**",
+    "Build/**",
+    "Builds/**"
+  ]
+}

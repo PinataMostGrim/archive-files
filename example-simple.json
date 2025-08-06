@@ -1,0 +1,14 @@
+{
+  "destination_folder": "C:/Backups",
+  "passphrase": "mypassword",
+  "target_paths": [
+    "C:/Users/YourUsername/Documents",
+    "C:/Users/YourUsername/Desktop"
+  ],
+  "ignore_patterns": [
+    "*.tmp",
+    "*.log",
+    "__pycache__",
+    "node_modules"
+  ]
+}

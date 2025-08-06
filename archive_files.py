@@ -23,9 +23,6 @@ from zipfile import ZIP_DEFLATED, ZipFile
 class Config(object):
     DEFAULT_CONFIG = {
         "destination_folder": r"",
-        "target_paths": [
-            r"",
-        ],
         "passphrase": r"password",
         "encryption_method": "openssl",
         "archive_prefix": "Backup",
@@ -34,6 +31,9 @@ class Config(object):
         "cleanup": False,
         "follow_symlinks": False,
         "compression_folder": r"",
+        "target_paths": [
+            r"",
+        ],
         "ignore_patterns": [],
     }
 
