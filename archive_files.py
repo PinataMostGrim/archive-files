@@ -9,6 +9,7 @@ Requirements:
 import argparse
 import fnmatch
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -289,45 +290,50 @@ class Archiver(object):
                 compresslevel=compress_level,
             ) as archive:
                 if target_path.is_dir():
-                    # Process directory contents
-                    for file_path in target_path.rglob("*"):
-                        try:
-                            should_skip, reason = self._should_skip_file(file_path)
-                            if should_skip:
-                                if reason:  # Only log if there's a reason
-                                    Logger.info(reason)
-                                    self.files_skipped += 1
-                                continue
-
-                            archive.write(
-                                file_path, arcname=file_path.relative_to(target_path.anchor)
-                            )
-                            self.files_processed += 1
-
-                        except Exception as ex:
-                            self._handle_file_error(file_path, ex)
+                    self._add_directory_to_archive(archive, target_path)
                 else:
-                    # Process single file
-                    try:
-                        should_skip, reason = self._should_skip_file(target_path)
-                        if should_skip:
-                            if reason:
-                                Logger.info(reason)
-                                self.files_skipped += 1
-                            return
-
-                        archive.write(
-                            target_path, arcname=target_path.relative_to(target_path.anchor)
-                        )
-                        self.files_processed += 1
-
-                    except Exception as ex:
-                        self._handle_file_error(target_path, ex)
+                    self._add_file_to_archive(archive, target_path, target_path)
 
         except Exception as ex:
-            # This catches errors at the archive level (e.g., disk full, permissions)
             Logger.error(f"Critical error creating archive: {ex}")
             raise
+
+    def _add_directory_to_archive(self, archive: ZipFile, target_path: Path):
+        """Adds directory contents to archive using os.walk for better control."""
+        for root, dirs, files in os.walk(target_path):
+            root_path = Path(root)
+            
+            # Check if current directory should be skipped
+            should_skip, reason = self._should_skip_file(root_path)
+            if should_skip and reason:  # Only skip if there's an actual ignore pattern match
+                Logger.info(reason)
+                self.files_skipped += 1
+                dirs.clear()  # Prevent traversing into this directory
+                continue
+            
+            # Process files in current directory
+            for filename in files:
+                file_path = root_path / filename
+                self._add_file_to_archive(archive, file_path, target_path)
+
+    def _add_file_to_archive(self, archive: ZipFile, file_path: Path, target_path: Path):
+        """Adds a single file to the archive with error handling."""
+        try:
+            should_skip, reason = self._should_skip_file(file_path)
+            if should_skip:
+                if reason:
+                    Logger.info(reason)
+                    self.files_skipped += 1
+                return
+
+            archive.write(
+                file_path, arcname=file_path.relative_to(target_path.anchor)
+            )
+            self.files_processed += 1
+
+        except (OSError, PermissionError) as ex:
+            # Handle individual file errors (like broken symlinks)
+            self._handle_file_error(file_path, ex)
 
     def move_file(self, source_file: Path, destination_file: Path):
         """Moves a file to a destination file path."""
