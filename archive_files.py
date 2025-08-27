@@ -117,6 +117,9 @@ class Archiver(object):
             )
             sys.exit(1)
 
+        # Check for dangerous archive placement
+        self._validate_archive_path(archive_path)
+
         # Archive files
         for path in self.config.target_paths:
             self.add_to_archive(archive_path, Path(path))
@@ -210,6 +213,31 @@ class Archiver(object):
         else:
             return level
 
+    def _validate_archive_path(self, archive_path: Path):
+        """Validates that the archive path is not inside any target paths to prevent infinite recursion."""
+        archive_parent = archive_path.parent.resolve()
+        
+        for target_path_str in self.config.target_paths:
+            target_path = Path(target_path_str).resolve()
+            
+            # Skip empty or invalid paths
+            if not target_path_str.strip() or not target_path.exists():
+                continue
+                
+            # Check if archive parent is the same as or inside the target path
+            try:
+                archive_parent.relative_to(target_path)
+                Logger.error(
+                    f'Archive path "{archive_path}" would be created inside target path "{target_path}". '
+                    f'This would cause infinite recursion and fill up the disk. '
+                    f'Please use a different compression_folder or destination_folder.'
+                )
+                sys.exit(1)
+            except ValueError:
+                # relative_to() raises ValueError if archive_parent is not relative to target_path
+                # This is the expected case when paths don't overlap
+                continue
+
     def _handle_file_error(self, file_path: Path, error: Exception):
         """Centralized error handling for file operations."""
         if isinstance(error, (FileNotFoundError, PermissionError, ValueError, OSError)):
@@ -302,7 +330,7 @@ class Archiver(object):
         """Adds directory contents to archive using os.walk for better control."""
         for root, dirs, files in os.walk(target_path):
             root_path = Path(root)
-            
+
             # Check if current directory should be skipped
             should_skip, reason = self._should_skip_file(root_path)
             if should_skip and reason:  # Only skip if there's an actual ignore pattern match
@@ -310,7 +338,7 @@ class Archiver(object):
                 self.files_skipped += 1
                 dirs.clear()  # Prevent traversing into this directory
                 continue
-            
+
             # Process files in current directory
             for filename in files:
                 file_path = root_path / filename
