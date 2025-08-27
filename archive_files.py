@@ -664,6 +664,11 @@ def parse_args():
         action="store_true",
         help="Follow symbolic links when archiving (symlinks are ignored by default)",
     )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Validate configuration and check for path conflicts without creating archive",
+    )
 
     return parser.parse_args()
 
@@ -685,6 +690,21 @@ def main():
     # Override config follow_symlinks with command line argument if provided
     if args.follow_symlinks:
         config.follow_symlinks = True
+
+    # Handle dry-run mode
+    if args.dry_run:
+        Logger.info("Dry-run mode: Validating configuration and checking for path conflicts")
+        if config.encryption_method.lower() == "gpg":
+            archiver = GPGArchiver(config)
+        else:
+            archiver = OpenSSLArchiver(config)
+        
+        # Validate archive path and check for conflicts
+        archive_path = archiver.get_archive_path()
+        archiver._validate_archive_path(archive_path)
+        Logger.info(f"Archive would be created at: {archive_path}")
+        Logger.info("Configuration validation successful - no path conflicts detected")
+        sys.exit()
 
     if config.encryption_method.lower() == "gpg":
         archiver = GPGArchiver(config)
