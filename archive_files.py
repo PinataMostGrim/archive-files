@@ -120,6 +120,9 @@ class Archiver(object):
         # Check for dangerous archive placement
         self._validate_archive_path(archive_path)
 
+        # Check available disk space
+        self._check_disk_space(archive_path)
+
         # Archive files
         for path in self.config.target_paths:
             self.add_to_archive(archive_path, Path(path))
@@ -216,14 +219,14 @@ class Archiver(object):
     def _validate_archive_path(self, archive_path: Path):
         """Validates that the archive path is not inside any target paths to prevent infinite recursion."""
         archive_parent = archive_path.parent.resolve()
-        
+
         for target_path_str in self.config.target_paths:
             target_path = Path(target_path_str).resolve()
-            
+
             # Skip empty or invalid paths
             if not target_path_str.strip() or not target_path.exists():
                 continue
-                
+
             # Check if archive parent is the same as or inside the target path
             try:
                 archive_parent.relative_to(target_path)
@@ -237,6 +240,20 @@ class Archiver(object):
                 # relative_to() raises ValueError if archive_parent is not relative to target_path
                 # This is the expected case when paths don't overlap
                 continue
+
+    def _check_disk_space(self, archive_path: Path):
+        """Check available disk space and warn if low."""
+        try:
+            total, used, free = shutil.disk_usage(archive_path.parent)
+            free_gb = free / (1024**3)
+
+            if free_gb < 5:  # Less than 5GB free
+                Logger.error(f"Warning: Only {free_gb:.1f} GB free disk space available")
+                Logger.error("Archive operation may fail due to insufficient space")
+
+            Logger.info(f"Available disk space: {free_gb:.1f} GB")
+        except Exception as ex:
+            Logger.warning(f"Could not check disk space: {ex}")
 
     def _handle_file_error(self, file_path: Path, error: Exception):
         """Centralized error handling for file operations."""
@@ -311,17 +328,40 @@ class Archiver(object):
         compress_level = self._get_compression_level()
 
         try:
+            # Check if existing archive is accessible and not corrupted
+            if archive_path.exists():
+                try:
+                    # Try to open the existing archive to verify it's not corrupted
+                    with ZipFile(archive_path, mode="r") as test_archive:
+                        # Just try to access the file list to verify integrity
+                        test_archive.namelist()
+                except Exception as verify_ex:
+                    Logger.error(f"Existing archive appears to be corrupted: {verify_ex}")
+                    Logger.error("Consider starting a new archive or checking disk space")
+                    raise
+
             with ZipFile(
                 archive_path,
                 mode="a",
                 compression=ZIP_DEFLATED,
                 compresslevel=compress_level,
+                allowZip64=True,  # Enable ZIP64 for large files
             ) as archive:
                 if target_path.is_dir():
                     self._add_directory_to_archive(archive, target_path)
                 else:
                     self._add_file_to_archive(archive, target_path, target_path)
 
+        except OSError as os_ex:
+            if os_ex.errno == 22:  # Invalid argument
+                Logger.error(f"Archive operation failed - this often indicates:")
+                Logger.error("  1. Archive file corruption (common with very large files)")
+                Logger.error("  2. Insufficient disk space")
+                Logger.error("  3. File system limitations")
+                Logger.error(f"  Archive size: {archive_path.stat().st_size / (1024**3):.1f} GB" if archive_path.exists() else "  Archive size: unknown")
+                Logger.error("Consider starting a new archive or freeing disk space")
+            Logger.error(f"Critical OS error creating archive: {os_ex}")
+            raise
         except Exception as ex:
             Logger.error(f"Critical error creating archive: {ex}")
             raise
@@ -698,7 +738,7 @@ def main():
             archiver = GPGArchiver(config)
         else:
             archiver = OpenSSLArchiver(config)
-        
+
         # Validate archive path and check for conflicts
         archive_path = archiver.get_archive_path()
         archiver._validate_archive_path(archive_path)
