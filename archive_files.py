@@ -563,6 +563,31 @@ class GPGArchiver(Archiver):
         return True
 
 
+def strip_json_comments(json_content: str) -> str:
+    """
+    Removes lines starting with '//' comments from JSON content.
+    Preserves original line numbers by replacing comment lines with empty lines.
+    
+    Args:
+        json_content: Raw JSON string content that may contain // comments
+        
+    Returns:
+        JSON string with comment lines replaced by empty lines
+    """
+    lines = json_content.splitlines()
+    processed_lines = []
+    
+    for line in lines:
+        stripped_line = line.strip()
+        # Replace lines that start with // comments with empty lines
+        if stripped_line.startswith('//'):
+            processed_lines.append('')
+        else:
+            processed_lines.append(line)
+    
+    return '\n'.join(processed_lines)
+
+
 def create_default_config_file(config_file: Path):
     """Creates a default configuration file at the specified path."""
     # TODO: An exception is thrown if the file has no extension
@@ -592,7 +617,10 @@ def load_config_file(config_file: Path) -> Config:
 
     try:
         with open(config_file, "r") as read_file:
-            config_data = json.load(read_file)
+            raw_content = read_file.read()
+            # Strip // comments before parsing JSON
+            cleaned_content = strip_json_comments(raw_content)
+            config_data = json.loads(cleaned_content)
     except JSONDecodeError:
         Logger.error(f'Invalid configuration file: "{config_file}"')
         raise
