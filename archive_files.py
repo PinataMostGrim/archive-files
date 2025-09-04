@@ -216,14 +216,14 @@ class Archiver(object):
     def _validate_archive_path(self, archive_path: Path):
         """Validates that the archive path is not inside any target paths to prevent infinite recursion."""
         archive_parent = archive_path.parent.resolve()
-        
+
         for target_path_str in self.config.target_paths:
             target_path = Path(target_path_str).resolve()
-            
+
             # Skip empty or invalid paths
             if not target_path_str.strip() or not target_path.exists():
                 continue
-                
+
             # Check if archive parent is the same as or inside the target path
             try:
                 archive_parent.relative_to(target_path)
@@ -300,6 +300,33 @@ class Archiver(object):
         else:
             return Path(filename)
 
+    def _validate_zip_before_append(self, archive_path: Path) -> bool:
+        """Validates ZIP file integrity before attempting to append to it."""
+        if not archive_path.exists():
+            return True  # New file, no validation needed
+        
+        try:
+            # Get file stats for diagnostic info
+            stat = archive_path.stat()
+            file_size = stat.st_size
+            mod_time = datetime.fromtimestamp(stat.st_mtime)
+            
+            Logger.info(f"Validating ZIP file: {archive_path} (size: {file_size} bytes, modified: {mod_time})")
+            
+            # Attempt to open and read ZIP file structure
+            with ZipFile(archive_path, mode="r") as test_zip:
+                # Test if we can read the ZIP's central directory
+                file_count = len(test_zip.infolist())
+                Logger.info(f"ZIP validation successful: {file_count} files in archive")
+                
+            return True
+            
+        except Exception as ex:
+            Logger.error(f"ZIP validation failed for {archive_path}: {ex}")
+            Logger.error(f"File size: {file_size if 'file_size' in locals() else 'unknown'} bytes")
+            Logger.error(f"Last modified: {mod_time if 'mod_time' in locals() else 'unknown'}")
+            return False
+
     def add_to_archive(self, archive_path: Path, target_path: Path):
         """Adds the file or folder at target path to an archive."""
         if not target_path.exists():
@@ -307,6 +334,11 @@ class Archiver(object):
             return
 
         Logger.info(f'Archiving "{target_path}"')
+
+        # Validate ZIP file integrity before attempting to append
+        if not self._validate_zip_before_append(archive_path):
+            Logger.error(f"ZIP file validation failed, aborting archive operation")
+            raise RuntimeError(f"ZIP file {archive_path} is corrupted or inaccessible")
 
         compress_level = self._get_compression_level()
 
@@ -567,16 +599,16 @@ def strip_json_comments(json_content: str) -> str:
     """
     Removes lines starting with '//' comments from JSON content.
     Preserves original line numbers by replacing comment lines with empty lines.
-    
+
     Args:
         json_content: Raw JSON string content that may contain // comments
-        
+
     Returns:
         JSON string with comment lines replaced by empty lines
     """
     lines = json_content.splitlines()
     processed_lines = []
-    
+
     for line in lines:
         stripped_line = line.strip()
         # Replace lines that start with // comments with empty lines
@@ -584,7 +616,7 @@ def strip_json_comments(json_content: str) -> str:
             processed_lines.append('')
         else:
             processed_lines.append(line)
-    
+
     return '\n'.join(processed_lines)
 
 
@@ -726,7 +758,7 @@ def main():
             archiver = GPGArchiver(config)
         else:
             archiver = OpenSSLArchiver(config)
-        
+
         # Validate archive path and check for conflicts
         archive_path = archiver.get_archive_path()
         archiver._validate_archive_path(archive_path)
