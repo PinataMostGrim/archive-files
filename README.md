@@ -11,6 +11,8 @@ Command line tool for creating encrypted backup archives with configurable file 
 
 ## Configuration Options
 
+Configuration files support `//` comments for documentation.
+
 | Option | Description | Default |
 |--------|-------------|---------|
 | `target_paths` | Array of files/folders to archive | `[""]` |
@@ -72,6 +74,9 @@ python archive_files.py -d encrypted-file.zip.enc my-backup.json
 
 # Follow symlinks (override config)
 python archive_files.py -f my-backup.json
+
+# Dry run (validate config and check for conflicts)
+python archive_files.py --dry-run my-backup.json
 ```
 
 ## Requirements
