@@ -354,6 +354,7 @@ class Archiver(object):
                     self.files_skipped += 1
                 return
 
+            Logger.info(f'Adding to archive: "{file_path}"')
             archive.write(
                 file_path, arcname=file_path.relative_to(target_path.anchor)
             )
